@@ -3,34 +3,48 @@ package main
 import (
 	"fmt"
 	"time"
+
+	"github.com/creativenucleus/bytejammer2/internal/log"
+	"github.com/creativenucleus/bytejammer2/internal/message"
+	"github.com/creativenucleus/bytejammer2/internal/tic"
 )
 
+const defaultJukeboxSceneDuration = time.Duration(10 * time.Second)
+
+// Jukebox contains a playlist and periodically sends a TIC-80 state from the playlist
 type Jukebox struct {
-	MessageBroadcaster
-	playlist Playlist
+	message.MsgSender
+	playlist      Playlist
+	sceneDuration time.Duration
 }
 
 func NewJukebox(playlist Playlist) *Jukebox {
 	l := &Jukebox{
-		playlist: playlist,
+		playlist:      playlist,
+		sceneDuration: defaultJukeboxSceneDuration,
 	}
 	return l
 }
 
-func (j *Jukebox) run() {
+func (j *Jukebox) SetSceneDuration(sceneDuration time.Duration) {
+	j.sceneDuration = sceneDuration
+}
+
+func (j *Jukebox) run() error {
 	for {
 		item, err := j.playlist.getNext()
 		if err != nil {
-			panic(err) // #TODO!
+			return err
 		}
 
-		//		state := MakeTicStateEditor([]byte("Hey there, how are you\nocwenocwen\nocwenowcniciowe"), 4, 2)
-		state := MakeTicStateRunning(item.code)
-		//state := MakeTicStateEditor([]byte(item.code), 4, 2)
-		fmt.Printf("Sending %s %s %s\n", item.author, item.description, item.location)
+		state := tic.MakeTicStateRunning(item.code)
+		log.GlobalLog.Send(&message.Msg{Type: message.MsgTypeLog, Data: log.MsgLogData{
+			Level:   "info",
+			Message: fmt.Sprintf("Sending %s %s %s\n", item.author, item.description, item.location),
+		}})
 
-		m := NewMessageTicState(state)
-		j.broadcast(&m)
-		time.Sleep(10 * time.Second)
+		msg := tic.NewMessageTicState(state)
+		j.Send(msg)
+		time.Sleep(j.sceneDuration)
 	}
 }

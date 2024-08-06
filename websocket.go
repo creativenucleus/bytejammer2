@@ -1,40 +1,14 @@
 package main
 
-import (
-	"log"
-	"sync"
-
-	"github.com/gorilla/websocket"
-)
-
 // WebSocket is dumb - it echoes whatever it receives in both directions
 
+/*
 type WebSocket struct {
 	MessageBroadcaster
 	conn    *websocket.Conn
 	wsMutex sync.Mutex
 }
-
-func (ws *WebSocket) messageHandler(message *Message) error {
-	ws.wsMutex.Lock()
-	defer ws.wsMutex.Unlock()
-
-	return ws.conn.WriteJSON(message)
-}
-
-func (ws *WebSocket) listen() {
-	for {
-		var msg Message
-		err := ws.conn.ReadJSON(&msg)
-		if err != nil {
-			log.Println("read:", err)
-			break
-		}
-
-		ws.broadcast(&msg)
-	}
-}
-
+*/
 // #TODO
 /*
 const (

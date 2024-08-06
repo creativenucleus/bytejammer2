@@ -8,16 +8,23 @@ import (
 var CONFIG Config
 
 type Config struct {
-	WorkDir string      `json:"work_dir"`
-	Tic80   Tic80Config `json:"tic-80"`
+	WorkDir      string             `json:"work_dir"`
+	ControlPanel ControlPanelConfig `json:"control_panel"`
+	Runnables    Runnables          `json:"runnables"`
 }
 
-type Tic80Config struct {
+type ControlPanelConfig struct {
+	Port uint
+}
+
+type Runnables map[string]Runnable
+
+type Runnable struct {
 	Filepath string
 	Args     []string
 }
 
-func Load(path string) error {
+func LoadGlobal(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err

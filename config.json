@@ -1,15 +1,24 @@
 {
     "work_dir": "./_bytejammer-data",
-    "tic-80": {
-        "filepath": "./tics/old-bytejammer-build/tic80-win.exe",
-        "args": [
-            "--skip"
-        ],
-        "xxxxfilepath": "./tics/1.2.2951-dev/tic80.exe",
-        "xxxargs": [
-            "--skip",
-            "--fft",
-            "--fftcaptureplaybackdevices"
-        ]
+    "control_panel": {
+        "port": 9000
+    },
+    "runnables": {
+        "tic-80-client": {
+            "filepath": "./tics/old-bytejammer-build/tic80-win.exe",
+            "args": [
+                "--skip"
+            ]
+        },
+        "tic-80-server": {
+            "filepath": "./tics/1.2.2951-dev/tic80.exe",
+            "args": [
+                "--skip",
+                "--fft",
+                "--fftcaptureplaybackdevices",
+                "--delay=5",
+                "--scale=2"
+            ]
+        }
     }
 }
