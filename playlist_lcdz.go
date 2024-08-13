@@ -1,5 +1,7 @@
 package main
 
+// PlaylistLCDZ creates a playlist by assembling Lua files from the LCDZ Byte Jam page
+
 import (
 	"fmt"
 	"net/http"

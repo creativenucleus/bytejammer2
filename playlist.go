@@ -6,6 +6,8 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"os"
+	"strings"
 )
 
 const (
@@ -20,6 +22,9 @@ type PlaylistItem struct {
 	code        []byte
 }
 
+type IPlaylist interface {
+}
+
 type Playlist struct {
 	order    int
 	items    []PlaylistItem
@@ -32,6 +37,14 @@ func NewPlaylist() *Playlist {
 		items:    []PlaylistItem{},
 		previous: -1,
 	}
+}
+
+func (p *Playlist) length() int {
+	return len(p.items)
+}
+
+func (p *Playlist) isEmpty() bool {
+	return len(p.items) == 0
 }
 
 func (p *Playlist) getNext() (*PlaylistItem, error) {
@@ -55,16 +68,33 @@ func (p *Playlist) getNext() (*PlaylistItem, error) {
 		return &item, nil
 	}
 
-	//	fmt.Printf("Loading: %s\n", item.location)
+	var code []byte
+	var err error
+	if strings.HasPrefix(item.location, "http://") || strings.HasPrefix(item.location, "https://") {
+		code, err = getCodeFromWeb(item.location)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		code, err = getCodeFromFile(item.location)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	respLua, err := http.Get(item.location)
+	p.items[iItemToPlay].code = code
+	return &p.items[iItemToPlay], nil
+}
+
+func getCodeFromWeb(url string) ([]byte, error) {
+	respLua, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
 	defer respLua.Body.Close()
 
 	if respLua.StatusCode != http.StatusOK {
-		return nil, errors.New(fmt.Sprintf("ERR write: Status Code = %d", respLua.StatusCode))
+		return nil, fmt.Errorf("err write: Status Code = %d", respLua.StatusCode)
 	}
 
 	data, err := io.ReadAll(respLua.Body)
@@ -72,6 +102,9 @@ func (p *Playlist) getNext() (*PlaylistItem, error) {
 		return nil, err
 	}
 
-	p.items[iItemToPlay].code = data
-	return &p.items[iItemToPlay], nil
+	return data, nil
+}
+
+func getCodeFromFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
 }

@@ -4,13 +4,11 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
-	"log"
 	"net/http"
-	"sync"
 	"time"
 
-	"github.com/creativenucleus/bytejammer2/internal/websocket"
-	"github.com/tyler-sommer/stick"
+	"github.com/creativenucleus/bytejammer2/internal/log"
+	"github.com/gorilla/mux"
 )
 
 //go:embed serve-static/*
@@ -20,53 +18,59 @@ var WebStaticAssets embed.FS
 var ClientIndexHtml []byte
 
 type ControlPanel struct {
-	wsClient *websocket.WebSocket
-	wsMutex  sync.Mutex
+	port   uint
+	router *mux.Router
+	//	wsClient *websocket.WebSocketRawData
+	//	wsMutex  sync.Mutex
+	startedMessage string
 }
 
-func Start(port uint) (*ControlPanel, error) {
-	// Replace this with a random string...
-	session := "session"
-
-	webServer := &http.Server{
-		Addr:              fmt.Sprintf(":%d", port),
-		ReadHeaderTimeout: 3 * time.Second,
+func NewControlPanel(port uint, startedMessage string) *ControlPanel {
+	cp := ControlPanel{
+		port:           port,
+		router:         mux.NewRouter(),
+		startedMessage: startedMessage,
 	}
+	return &cp
+}
 
+func (cp *ControlPanel) Launch() error {
 	subFs, err := fs.Sub(WebStaticAssets, "serve-static")
 	if err != nil {
-		return nil, err
+		return err
 	}
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(subFs))))
+	//	cp.router.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(subFs))))
+	cp.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(subFs))))
 
-	fmt.Printf("In a web browser, go to http://localhost:%d/%s\n", port, session)
-
-	cp := ControlPanel{
-		//		chSendServerStatus: make(chan ClientServerStatus),
+	webServer := &http.Server{
+		Addr:              fmt.Sprintf(":%d", cp.port),
+		Handler:           cp.router,
+		ReadHeaderTimeout: 3 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		ReadTimeout:       15 * time.Second,
 	}
 
-	http.HandleFunc(fmt.Sprintf("/%s", session), cp.webClientIndex)
+	log.GlobalLog.Log("info", cp.startedMessage)
+
+	//	http.HandleFunc(fmt.Sprintf("/%s", session), cp.webClientIndex)
 
 	//	http.HandleFunc(fmt.Sprintf("/%s/api/identity.json", session), cp.webClientApiIdentityJSON)
 	//	http.HandleFunc(fmt.Sprintf("/%s/api/join-server.json", session), cp.webClientApiJoinServerJSON)
 
 	//	http.HandleFunc(fmt.Sprintf("/%s/ws-client", session), cp.wsWebClient())
-	if err := webServer.ListenAndServe(); err != nil {
-		return nil, err
-	}
-
-	return &cp, nil
+	return webServer.ListenAndServe()
 }
 
+/*
 func (cp *ControlPanel) webClientIndex(w http.ResponseWriter, r *http.Request) {
 	env := stick.New(nil)
 
 	err := env.Execute(string(ClientIndexHtml), w, map[string]stick.Value{"session_key": "session"})
 	if err != nil {
-		log.Println("write:", err)
+		log.GlobalLog.Log("info", fmt.Sprintf("write: %s", err))
 	}
 }
-
+*/
 /*
 func (cp *ControlPanel) wsWebClient() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {

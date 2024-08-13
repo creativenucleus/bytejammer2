@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
@@ -11,14 +12,14 @@ import (
 )
 
 // Implements message.MsgReceiver
-type WebSocket struct {
-	message.MsgSender
+type WebSocketRawData struct {
+	message.MsgPropagator
 	conn *websocket.Conn
 	//	wsMutex sync.Mutex
 }
 
 // Try to join host:port/path with a websocket connection
-func NewWebSocketClient(host string, port int, path string) (*WebSocket, error) {
+func NewWebSocketRawDataClient(host string, port int, path string) (*WebSocketRawData, error) {
 	u := url.URL{
 		Scheme: "ws",
 		Host:   fmt.Sprintf("%s:%d", host, port),
@@ -26,42 +27,70 @@ func NewWebSocketClient(host string, port int, path string) (*WebSocket, error) 
 	}
 	log.Printf("-> Connecting to %s", u.String())
 
-	ws := &WebSocket{}
+	ws := &WebSocketRawData{}
 	var err error
 	ws.conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
 
+	//	go ws.listen()
+
 	return ws, nil
 }
 
 // WebSocket is dumb - it echoes whatever it receives in both directions
 
-func (ws *WebSocket) MsgHandler(msg message.Msg) error {
+func (ws *WebSocketRawData) MsgHandler(msgType message.MsgType, msgData []byte) error {
 	//	ws.wsMutex.Lock()
 	//	defer ws.wsMutex.Unlock()
-	switch msg.Type {
+	switch msgType {
 	case message.MsgTypeTicState:
-		ticState, ok := msg.Data.(*tic.State)
-		if !ok {
-			return nil
+		var ticState tic.State
+		err := json.Unmarshal(msgData, &ticState)
+		if err != nil {
+			return err
 		}
 
 		data, err := ticState.MakeDataToImport()
 		if err != nil {
-			fmt.Println(err)
 			return err
 		}
 
 		return ws.conn.WriteMessage(websocket.TextMessage, data)
+	case message.MsgTypeTicSnapshot:
+		fmt.Println("OH!")
 	}
 
 	return nil
 }
 
 /*
-func (ws *WebSocket) listen() {
+func (ws *WebSocketRawData) listen() {
+	for {
+		messageType, msg, err := ws.conn.ReadMessage()
+		if err != nil {
+			log.Println("read:", err)
+			break
+		}
+
+		fmt.Println(messageType)
+
+		state := tic.State{}
+		state.SetCode(data)
+		data, err = json.Marshal(state)
+		if err != nil {
+			log.Println("error marshalling state")
+			break
+		}
+
+		ws.Propagate(message.Msg{Type: message.MsgTypeTicState, Data: data})
+	}
+}
+*/
+
+/*
+func (ws *WebSocketRawData) listen() {
 	for {
 		var msg message.Msg
 		err := ws.conn.ReadJSON(&msg)

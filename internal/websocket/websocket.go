@@ -1,6 +1,8 @@
 package websocket
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -12,28 +14,35 @@ var WsUpgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true }, // #TODO: Check
 }
 
+type WebSocket struct {
+	Conn *websocket.Conn
+}
+
 type HttpHandler func(w http.ResponseWriter, r *http.Request)
 
-/*
-func NewWebSocketHandler(host string, port int, path string) (HttpHandler, error) {
+type ReadHandler func(WebSocket)
+
+func NewWebSocketHandler(readFn ReadHandler) HttpHandler {
 	ws := WebSocket{}
 
-	wsHandler := func(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("NewWebSocketHandler->added")
+	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
-		ws.conn, err = WsUpgrader.Upgrade(w, r, nil)
+		fmt.Println("NewWebSocketHandler->upgrade")
+		ws.Conn, err = WsUpgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Print("upgrade:", err)
 			return
 		}
-		//		defer cp.wsClient.Close()
+		fmt.Println("NewWebSocketHandler->upgraded")
 
-		go ws.listen()
+		defer ws.Conn.Close()
+
+		fmt.Println("NewWebSocketHandler->loop")
 
 		// #TODO: handle exit
 		for {
+			readFn(ws)
 		}
 	}
-
-	return wsHandler, nil
 }
-*/

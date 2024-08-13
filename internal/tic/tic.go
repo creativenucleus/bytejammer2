@@ -1,6 +1,7 @@
 package tic
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,8 +14,22 @@ import (
 	"github.com/creativenucleus/bytejammer2/internal/message"
 )
 
-func NewMessageTicState(state State) message.Msg {
-	return message.Msg{Type: "tic-state", Data: state}
+type MsgTicStateData struct {
+	State
+}
+
+func NewMessageTicState(state State) (*message.Msg, error) {
+	data, err := json.Marshal(state)
+	if err != nil {
+		return nil, err
+	}
+
+	return &message.Msg{Type: "tic-state", Data: data}, nil
+}
+
+type MsgTicSnapshotData struct {
+	ClientID string
+	Code     []byte
 }
 
 // TicManager is a struct that represents a TIC-80 instance
@@ -22,7 +37,7 @@ func NewMessageTicState(state State) message.Msg {
 // Currently a TIC instance cannot both import and export
 // Implements message.MsgReceiver
 type TicManager struct {
-	message.MsgSender
+	message.MsgPropagator
 
 	// The handle to the running TIC
 	cmd            *exec.Cmd
@@ -52,18 +67,27 @@ func NewTicManager(codeImportPath *string, codeExportPath *string /*, broadcaste
 	return tic, nil
 }
 
+func (tm *TicManager) GetState() (*State, error) {
+	if tm.codeExportPath == nil {
+		return nil, fmt.Errorf("tried to export code - but export file is not set up")
+	}
+
+	return tm.readExportCode()
+}
+
 // Handles "tic-state"
-func (tm *TicManager) MsgHandler(msg message.Msg) error {
-	switch msg.Type {
+func (tm *TicManager) MsgHandler(msgType message.MsgType, msgData []byte) error {
+	switch msgType {
 	case message.MsgTypeTicState:
 		if tm.codeImportPath != nil {
-			ticState, ok := msg.Data.(State)
-			if !ok {
+			var ticState State
+			err := json.Unmarshal(msgData, &ticState)
+			if err != nil {
 				fmt.Println("Invalid message data for TicState") // #TODO: Raise
-				return nil
+				return err
 			}
 
-			err := tm.writeImportCode(ticState)
+			err = tm.writeImportCode(ticState)
 			if err != nil {
 				fmt.Println(err) // #TODO: Raise
 				return nil
@@ -71,18 +95,18 @@ func (tm *TicManager) MsgHandler(msg message.Msg) error {
 		}
 
 	default:
-		log.GlobalLog.Send(&message.Msg{Type: message.MsgTypeLog, Data: log.MsgLogData{
-			Level:   "error",
-			Message: fmt.Sprintf("Unhandled message type [%s] - ignored", msg.Type),
-		}})
+		log.GlobalLog.Log("error", fmt.Sprintf("Unhandled message type [%s] - ignored", msgType))
 		return nil
 	}
 
 	return nil
 }
 
-func (tm *TicManager) StartMachine() error {
-	configRunnable := config.CONFIG.Runnables["tic-80-client"]
+func (tm *TicManager) StartMachine(machineConfig string) error {
+	configRunnable, ok := config.CONFIG.Runnables[machineConfig]
+	if !ok {
+		return fmt.Errorf("Could not find runnable setting %s in config.json", machineConfig)
+	}
 	args := configRunnable.Args
 
 	if tm.codeImportPath != nil {
@@ -121,12 +145,14 @@ func (tm *TicManager) StartMachine() error {
 			for {
 				code, err := tm.readExportCode()
 				if err != nil {
-					log.GlobalLog.Send(&message.Msg{Type: message.MsgTypeLog, Data: log.MsgLogData{
-						Level:   "error",
-						Message: err.Error(),
-					}})
+					log.GlobalLog.Log("error", err.Error())
 				} else {
-					tm.Send(message.Msg{Type: message.MsgTypeTicState, Data: code})
+					encCode, err := json.Marshal(code)
+					if err != nil {
+						log.GlobalLog.Log("error", err.Error())
+					}
+
+					tm.Propagate(message.MsgTypeTicState, encCode)
 				}
 				time.Sleep(5 * time.Second)
 			}
@@ -140,7 +166,7 @@ func (tm *TicManager) StartMachine() error {
 		//		fmt.Printf("%s\n", slurp)
 
 		err = tm.cmd.Wait()
-		log.GlobalLog.Send(&message.Msg{Type: message.MsgTypeLog, Data: log.MsgLogData{Level: "error", Message: fmt.Errorf("TIC (%d) finished with error: %v", tm.cmd.Process.Pid, err).Error()}})
+		log.GlobalLog.Log("error", fmt.Errorf("TIC (%d) finished with error: %v", tm.cmd.Process.Pid, err).Error())
 
 		// #TODO: cleanup
 	}()

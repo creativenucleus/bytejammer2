@@ -1,7 +1,5 @@
 html {
-    /* background-color: #d3f5ff;
-    overflow: hidden;
-    */
+    background-color: #d3f5ff;
 }
 
 #ws-local-status {
@@ -13,6 +11,7 @@ html {
 }
 
 #log {
+    width: 100%;
     background: white;
     font-family: monospace;
     height: 8em;
