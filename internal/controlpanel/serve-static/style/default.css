@@ -1,5 +1,9 @@
-html {
-    background-color: #d3f5ff;
+body {
+    text-align: center;
+}
+
+#header {
+    padding: 1em;
 }
 
 #ws-local-status {
@@ -20,4 +24,14 @@ html {
 
 #connection-status-panel {
     background: white;
+}
+
+.action-button {
+    padding: .3em;
+    margin: .3em .2em;
+    font-size: 2rem;
+}
+
+.action-button + .action-button {
+    margin-left: 2em;
 }

@@ -45,8 +45,12 @@ class BjmrWebSocket {
             return false;
         }
 
-        data.type = type;
-        const blob = new Blob([JSON.stringify(data, null, 2)], {
+        const body = {
+            type: type,
+            data: data
+        };
+
+        const blob = new Blob([JSON.stringify(body, null, 2)], {
             type: "application/json",
         });
 

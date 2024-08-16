@@ -1,8 +1,6 @@
 package websocket
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -25,20 +23,14 @@ type ReadHandler func(WebSocket)
 func NewWebSocketHandler(readFn ReadHandler) HttpHandler {
 	ws := WebSocket{}
 
-	fmt.Println("NewWebSocketHandler->added")
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
-		fmt.Println("NewWebSocketHandler->upgrade")
 		ws.Conn, err = WsUpgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Print("upgrade:", err)
 			return
 		}
-		fmt.Println("NewWebSocketHandler->upgraded")
 
 		defer ws.Conn.Close()
-
-		fmt.Println("NewWebSocketHandler->loop")
 
 		// #TODO: handle exit
 		for {

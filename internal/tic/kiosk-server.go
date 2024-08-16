@@ -8,6 +8,7 @@ import (
 
 	"encoding/json"
 
+	"github.com/creativenucleus/bytejammer2/internal/files"
 	"github.com/creativenucleus/bytejammer2/internal/log"
 	"github.com/creativenucleus/bytejammer2/internal/message"
 )
@@ -33,7 +34,7 @@ func (ks *KioskServer) MsgHandler(msgType message.MsgType, msgData []byte) error
 
 		timeNow := time.Now()
 
-		fname := fmt.Sprintf("%s-%s.lua", timeNow.Format("20060102150405"), snapshotData.ClientID)
+		fname := fmt.Sprintf("%s-%s.lua", timeNow.Format("20060102150405"), files.SanitiseFilename(snapshotData.DisplayName))
 		fpath := fmt.Sprintf("%s/%s", ks.directory, fname)
 		// TODO: Check for breakout
 		cleanPath, err := filepath.Abs(fpath)

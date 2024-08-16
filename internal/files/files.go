@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 )
 
 func EnsurePathExists(path string, perm fs.FileMode) error {
@@ -27,4 +28,12 @@ func EnsurePathExists(path string, perm fs.FileMode) error {
 	}
 
 	return nil
+}
+
+// Not great - but it's a start
+func SanitiseFilename(str string) string {
+	chars := `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`
+	pattern := "[^" + chars + "]+"
+	r, _ := regexp.Compile(pattern)
+	return string(r.ReplaceAll([]byte(str), []byte("")))
 }

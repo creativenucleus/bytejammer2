@@ -15,19 +15,20 @@
     </head>
     <body>
         <div class="container">
-            <h1>Evoke ByteWall!</h1>
+            <div id="header">
+                <h1>Evoke ByteWall!</h1>
+            </div>
 
+            <p>
+                <button class="action-button" onclick="return SendSnapshotToServer()">Save TIC Effect</button>
+                <button class="action-button" onclick="return StartNewPlayer()">New Player</button>
+            </p>
+            
             <p>Websocket status: <span id="ws-local-status"></span></p>
 
-            <form>
-                <button onclick="return SendSnapshotToServer()">Save Snapshot!</button>
-            </form>
-            
-            <form>
-                <button onclick="return StartNewPlayer()">New Player</button>
-            </form>
-            
-            <textarea id="log"></textarea>
+            <textarea id="log" style="display: none"></textarea>
+
+            <button onclick="ToggleLog()">toggle log</button>
         </div>
 
 
@@ -82,14 +83,33 @@
             }
 
             const SendSnapshotToServer = () => {
-                ws.sendMsg("kiosk-make-snapshot", {});
-                alert("SEND!")
+                let displayName = prompt("This will add your code to the Byte Wall! :)\n\nPlease enter your name / scene name:", "");
+                if (displayName != null) {
+                    displayName = displayName.trim();
+                }
+
+                if (displayName == null || displayName == "") {
+                    alert("No submission made. Please enter your name if you'd like to submit!")
+                    return false;
+                }
+
+                ws.sendMsg("kiosk-make-snapshot", {
+                    "display_name": displayName,
+                });
+                alert("Thank you for your submission!")
                 return false;
             }
 
             const StartNewPlayer = () => {
-                alert("Start new player!")
+                if (window.confirm("This will erase your code. Did you take a snapshot of it?")) {
+                    ws.sendMsg("kiosk-new-player", {});
+                }
                 return false;
+            }
+
+            const ToggleLog = () => {
+                const log = document.getElementById("log");
+                log.style.display = log.style.display === "none" ? "block" : "none";
             }
         </script>
     </body>

@@ -28,8 +28,8 @@ func NewMessageTicState(state State) (*message.Msg, error) {
 }
 
 type MsgTicSnapshotData struct {
-	ClientID string
-	Code     []byte
+	DisplayName string
+	Code        []byte
 }
 
 // TicManager is a struct that represents a TIC-80 instance
@@ -73,6 +73,14 @@ func (tm *TicManager) GetState() (*State, error) {
 	}
 
 	return tm.readExportCode()
+}
+
+func (tm *TicManager) SetState(state State) error {
+	if tm.codeImportPath == nil {
+		return fmt.Errorf("tried to import code - but import file is not set up")
+	}
+
+	return tm.writeImportCode(state)
 }
 
 // Handles "tic-state"

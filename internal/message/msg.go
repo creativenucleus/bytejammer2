@@ -14,7 +14,18 @@ const MsgTypeTicSnapshot = MsgType("tic-snapshot")
 // A request from the kiosk to make a snapshot
 const MsgTypeKioskMakeSnapshot = MsgType("kiosk-make-snapshot")
 
+type MsgDataMakeSnapshot struct {
+	DisplayName string `json:"display_name"`
+}
+
+// A request from the kiosk to prep a new player
+const MsgTypeKioskNewPlayer = MsgType("kiosk-new-player")
+
 // Msg is the base struct for representing some information that is passed around
+type MsgHeader struct {
+	Type MsgType
+}
+
 type Msg struct {
 	Type MsgType
 	Data []byte

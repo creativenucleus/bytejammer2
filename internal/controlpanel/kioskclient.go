@@ -2,12 +2,14 @@ package controlpanel
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/creativenucleus/bytejammer2/internal/message"
 	"github.com/creativenucleus/bytejammer2/internal/websocket"
+	gorillaWS "github.com/gorilla/websocket"
 	"github.com/tyler-sommer/stick"
 )
 
@@ -18,27 +20,54 @@ type KioskClient struct {
 	ControlPanel
 }
 
-func NewKioskClient(port uint, chMakeSnapshot chan<- bool) *KioskClient {
+func NewKioskClient(
+	port uint,
+	chMakeSnapshot chan<- message.MsgDataMakeSnapshot,
+	chNewPlayer chan<- bool,
+) *KioskClient {
 	kc := KioskClient{
 		ControlPanel: *NewControlPanel(port, fmt.Sprintf("Go to http://localhost:%d/", port)),
 	}
 
 	kc.router.HandleFunc("/", kc.webKioskIndex)
 	kc.router.HandleFunc("/ws-kiosk", websocket.NewWebSocketHandler(func(ws websocket.WebSocket) {
-		var msg message.Msg
-		err := ws.Conn.ReadJSON(&msg)
+
+		messageType, msgData, err := ws.Conn.ReadMessage()
 		if err != nil {
 			fmt.Println("read:", err)
 			return
 		}
 
-		switch msg.Type {
+		if messageType != gorillaWS.BinaryMessage {
+			fmt.Println("messageType is not Binary")
+			return
+		}
+
+		var msgHeader message.MsgHeader
+		err = json.Unmarshal(msgData, &msgHeader)
+		if err != nil {
+			fmt.Printf("Error unmarshalling header: %s\n", err)
+			return
+		}
+
+		switch msgHeader.Type {
 		case message.MsgTypeKioskMakeSnapshot:
-			fmt.Println("Make snapshot")
-			chMakeSnapshot <- true
+			body := struct {
+				Data message.MsgDataMakeSnapshot `json:"data"`
+			}{}
+			err := json.Unmarshal(msgData, &body)
+			if err != nil {
+				fmt.Printf("Error unmarshalling data: %s\n", err)
+				return
+			}
+
+			chMakeSnapshot <- body.Data
+
+		case message.MsgTypeKioskNewPlayer:
+			chNewPlayer <- true
 
 		default:
-			fmt.Printf("Message not understood: %s\n", msg.Type)
+			fmt.Printf("Message not understood: %s\n", msgHeader.Type)
 		}
 	}))
 
