@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"time"
 )
 
 func EnsurePathExists(path string, perm fs.FileMode) error {
@@ -36,4 +37,35 @@ func SanitiseFilename(str string) string {
 	pattern := "[^" + chars + "]+"
 	r, _ := regexp.Compile(pattern)
 	return string(r.ReplaceAll([]byte(str), []byte("")))
+}
+
+type FileWatcher struct {
+	path             string
+	checkFrequency   time.Duration
+	chFileDataUpdate chan []byte
+}
+
+func NewFileWatcher(path string, checkFrequency time.Duration, chFileDataUpdate chan []byte) (*FileWatcher, error) {
+	fw := &FileWatcher{
+		path:             path,
+		chFileDataUpdate: chFileDataUpdate,
+	}
+
+	return fw, nil
+}
+
+func (f FileWatcher) Run() {
+	ticker := time.NewTicker(f.checkFrequency)
+
+	for {
+		<-ticker.C
+		data, err := f.Read()
+		if err != nil {
+			f.chFileDataUpdate <- data
+		}
+	}
+}
+
+func (f FileWatcher) Read() ([]byte, error) {
+	return os.ReadFile(f.path)
 }

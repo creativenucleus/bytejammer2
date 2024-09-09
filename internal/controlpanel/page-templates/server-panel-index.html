@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>ByteJammer</title>
+
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="">
+        <meta name="author" content="jtruk/RiFT">
+
+        <link href="/static/package/bootstrap-5.3.3-dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="/static/style/default.css" />
+        <link rel="icon" type="image/x-icon" href="/static/media/favicon/favicon.ico">
+        <script src="/static/javascript/bytejammer.js"></script>
+    </head>
+    <body>
+        <div class="container">
+            <div id="header">
+                <h1>Server Panel</h1>
+            </div>
+            
+            <p>Websocket status: <span id="ws-local-status"></span></p>
+
+            <textarea id="log" style="display: none"></textarea>
+
+            <button onclick="ToggleLog()">toggle log</button>
+        </div>
+
+
+        <script src="/static/package/bootstrap-5.3.3-dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            const ws = new BjmrWebSocket()
+
+            window.onload = () => {
+                const conn = ws.open("ws://" + document.location.host + "/ws-server");
+                if(!conn) {                    
+                    setWsLocalStatusText('error', "Your browser does not support WebSockets");
+                    // TODO: Bigger error?
+                } else {
+                    setWsLocalStatusText('ok', "Initialised");
+
+                    conn.onerror = (error) => {
+                        addToLog("Local websocket connection error");
+                    }
+
+                    conn.onopen = () => {
+                        addToLog("Connected to local");
+                        setWsLocalStatusText('ok', "Open")
+                    }
+                    
+                    conn.onclose = (event) => {
+                        addToLog("Disconnected from local");
+                        if (event.wasClean) {
+                            setWsLocalStatusText('ok', `Closed: Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+                        } else {
+                            // e.g. server process killed or network down
+                            // event.code is usually 1006 in this case
+                            setWsLocalStatusText('error', 'Closed: Unexpected disconnect');
+                        }
+                    }
+
+                    conn.onmessage = (evt) => {
+                        const msg = JSON.parse(evt.data);
+                        switch(msg.type) {
+                            case "server-status":
+                                handleMsgServerStatus(msg.data);
+                                break;
+
+                            case "log":
+                                handleMsgLog(msg.log);
+                                break;
+
+                            default:
+                                console.error(`Unhandled message type ${msg.type}`);
+                        }
+                    }
+                }
+            }
+
+            const ToggleLog = () => {
+                const log = document.getElementById("log");
+                log.style.display = log.style.display === "none" ? "block" : "none";
+            }
+        </script>
+    </body>
+</html>

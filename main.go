@@ -20,8 +20,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var kioskStarterCode = []byte(
-	"-- Welcome to the Evoke ByteWall!\n" +
+var defaultKioskStarterCode = []byte(
+	"-- Welcome to the ByteWall!\n" +
 		"-- Please delete this code and play.\n" +
 		"--\n" +
 		"-- Any issues? Find Violet =)\n" +
@@ -80,6 +80,32 @@ func runCli() error {
 		          },
 		      },*/
 		Commands: []*cli.Command{
+			{
+				Name:  "sender",
+				Usage: "run a socket sender",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "socketurl",
+						Usage:    "URL (e.g. ws://drone.alkama.com:9000/room/username)",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "file",
+						Usage:    "File to watch (e.g. C:/Users/username/Documents/MyFile.lua)",
+						Required: true,
+					},
+				},
+				Action: func(cCtx *cli.Context) error {
+					socketURL, err := url.Parse(cCtx.String("socketurl"))
+					if err != nil {
+						panic(err)
+					}
+					filepath := cCtx.String("filepath")
+
+					checkFrequency := 2 * time.Second
+					return runSender(*socketURL, filepath, checkFrequency)
+				},
+			},
 			/*			{
 							Name:  "client",
 							Usage: "run a default client",
@@ -87,14 +113,15 @@ func runCli() error {
 								return runClient()
 							},
 						},
-						{
-							Name:  "server",
-							Usage: "run a default client",
-							Action: func(*cli.Context) error {
-								return runServer()
-							},
-						},
 			*/
+
+			{
+				Name:  "server",
+				Usage: "run a default server",
+				Action: func(*cli.Context) error {
+					return runServer()
+				},
+			},
 			{
 				Name:  "kiosk-client",
 				Usage: "run a kiosk client",
@@ -104,6 +131,10 @@ func runCli() error {
 						Usage:    "URL (e.g. ws://drone.alkama.com:9000/bytejammer/evoke)",
 						Required: true,
 					},
+					&cli.StringFlag{
+						Name:  "startercodepath",
+						Usage: "A filepath pointing to a Lua file to be the starter code",
+					},
 				},
 				Action: func(cCtx *cli.Context) error {
 					u, err := url.Parse(cCtx.String("socketurl"))
@@ -111,7 +142,9 @@ func runCli() error {
 						panic(err)
 					}
 
-					return runKioskClient(keyboard.ChUserExitRequest, keyboard.ChKeyPress, *u)
+					startercodepath := cCtx.String("startercodepath")
+
+					return runKioskClient(keyboard.ChUserExitRequest, keyboard.ChKeyPress, *u, startercodepath)
 				},
 			},
 			{
@@ -140,13 +173,97 @@ func runCli() error {
 					return runJukebox(keyboard.ChUserExitRequest)
 				},
 			},
+			{
+				Name:  "recorder",
+				Usage: "run a default recorder",
+				Action: func(*cli.Context) error {
+					return runRecorder(keyboard.ChUserExitRequest)
+				},
+			},
+			{
+				Name:  "replayer",
+				Usage: "run a default replayer",
+				Action: func(*cli.Context) error {
+					return runReplayer(keyboard.ChUserExitRequest)
+				},
+			},
 		},
 	}
 
 	return app.Run(os.Args)
 }
 
-func runKioskClient(chUserExitRequest <-chan bool, chKeyPress <-chan term.Key, socketURL url.URL) error {
+func runSender(socketURL url.URL, filepath string, checkFrequency time.Duration) error {
+	// Open a socket
+	log.GlobalLog.Log("info", fmt.Sprintf("Kiosk Client: Connecting to: %s", socketURL.String()))
+	wsConn, err := websocket.NewWebSocketConnection(socketURL)
+	if err != nil {
+		return err
+	}
+	log.GlobalLog.Log("info", fmt.Sprintf("Kiosk Client: Connected to: %s", socketURL.String()))
+
+	// Watch a file
+	// Check frequency
+	// Only send if file has changed
+	// Send frequency
+	ticker := time.NewTicker(500 * time.Millisecond)
+	done := make(chan bool)
+
+	chFileDataUpdate := make(chan []byte)
+	filewatcher, err := files.NewFileWatcher(filepath, checkFrequency, chFileDataUpdate)
+	if err != nil {
+		return err
+	}
+
+	dataToSend, err := filewatcher.Read()
+	if err != nil {
+		return err
+	}
+
+	chError := make(chan error)
+	// TODO: something with chError
+
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case dataFromFile := <-chFileDataUpdate:
+				dataToSend = dataFromFile
+				err = sendRawData(wsConn, dataToSend)
+				if err != nil {
+					chError <- err
+				}
+
+			case <-ticker.C:
+				dataToSend, err := filewatcher.Read()
+				if err != nil {
+					chError <- err
+				}
+				err = sendRawData(wsConn, dataToSend)
+				if err != nil {
+					chError <- err
+				}
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			filewatcher.Run()
+		}
+	}()
+
+	time.Sleep(1600 * time.Millisecond)
+	ticker.Stop()
+	done <- true
+
+	fmt.Println("Ticker stopped")
+
+	return nil
+}
+
+func runKioskClient(chUserExitRequest <-chan bool, chKeyPress <-chan term.Key, socketURL url.URL, kioskStarterCodePath string) error {
 	kioskClientPath := filepath.Join(config.CONFIG.WorkDir, "kiosk-client-snapshots")
 	kioskClientPath, err := filepath.Abs(kioskClientPath)
 	if err != nil {
@@ -185,6 +302,14 @@ func runKioskClient(chUserExitRequest <-chan bool, chKeyPress <-chan term.Key, s
 	}
 	log.GlobalLog.Log("info", fmt.Sprintf("Kiosk Client: Connected to: %s", socketURL.String()))
 
+	kioskStarterCode := defaultKioskStarterCode
+	if kioskStarterCodePath != "" {
+		kioskStarterCode, err = os.ReadFile(kioskStarterCodePath)
+		if err != nil {
+			return err
+		}
+	}
+
 	state := tic.MakeTicStateEditor(kioskStarterCode, 1, 1)
 	err = ticManager.SetState(state)
 	if err != nil {
@@ -197,12 +322,22 @@ func runKioskClient(chUserExitRequest <-chan bool, chKeyPress <-chan term.Key, s
 			sendSnapshot(ticManager, kioskClientPath, data.DisplayName, wsConn)
 
 		case <-chNewPlayer:
-			newPlayer(ticManager)
+			newPlayer(ticManager, kioskStarterCode)
 
 		case <-chUserExitRequest:
 			return nil
 		}
 	}
+}
+
+func sendRawData(wsConn *websocket.WebSocketConnection, data []byte) error {
+	err := wsConn.SendRaw(data)
+	if err != nil {
+		return err
+	}
+
+	log.GlobalLog.Log("info", "Raw Data: Sent (not confimation of receipt)")
+	return nil
 }
 
 func sendSnapshot(ticManager *tic.TicManager, kioskClientPath string, displayName string, wsConn *websocket.WebSocketConnection) error {
@@ -242,10 +377,10 @@ func sendSnapshot(ticManager *tic.TicManager, kioskClientPath string, displayNam
 	return nil
 }
 
-func newPlayer(ticManager *tic.TicManager) error {
+func newPlayer(ticManager *tic.TicManager, starterCode []byte) error {
 	log.GlobalLog.Log("info", "Starting New Player")
 
-	state := tic.MakeTicStateEditor(kioskStarterCode, 1, 1)
+	state := tic.MakeTicStateEditor(starterCode, 1, 1)
 	err := ticManager.SetState(state)
 	if err != nil {
 		return err
@@ -341,7 +476,7 @@ func runClient() error {
 		return err
 	}
 
-	wsClient, err := websocket.NewWebSocketRawDataClient("drone.alkama.com", 9000, "/bytejammer/test")
+	wsClient, err := websocket.NewWebSocketRawDataClient("drone.alkama.com", 9000, "/jtruk/test")
 	if err != nil {
 		return err
 	}
@@ -371,11 +506,17 @@ func runServer() error {
 		return err
 	}
 
-	wsClient, err := websocket.NewWebSocketRawDataClient("drone.alkama.com", 9000, "/bytejammer/test")
+	wsClient, err := websocket.NewWebSocketRawDataClient("drone.alkama.com", 9000, "/jtruk/test")
 	if err != nil {
 		return err
 	}
 	wsClient.AddReceiver(ticManager)
+
+	// #TODO: error handling?!
+	go func() error {
+		cp := controlpanel.NewServerPanel(config.CONFIG.ControlPanel.Port)
+		return cp.Launch()
+	}()
 
 	for {
 		time.Sleep(1 * time.Second)
@@ -413,4 +554,63 @@ func runJukebox(chUserExitRequest <-chan bool) error {
 			time.Sleep(1 * time.Second)
 		}
 	}
+}
+
+func runRecorder(chUserExitRequest <-chan bool) error {
+	recorderPath := filepath.Join(config.CONFIG.WorkDir, "recorder")
+	err := files.EnsurePathExists(recorderPath, 0755)
+	if err != nil {
+		return err
+	}
+
+	codeExportPath := filepath.Join(config.CONFIG.WorkDir, "export.lua")
+	ticManager, err := tic.NewTicManager(nil, &codeExportPath)
+	if err != nil {
+		return err
+	}
+
+	err = ticManager.StartMachine("tic-80-client")
+	if err != nil {
+		return err
+	}
+
+	recorder, err := tic.NewRecorder(recorderPath)
+	if err != nil {
+		return err
+	}
+	ticManager.AddReceiver(recorder)
+
+	for {
+		select {
+		case <-chUserExitRequest:
+			return nil
+		default:
+			time.Sleep(1 * time.Second)
+		}
+	}
+}
+
+func runReplayer(chUserExitRequest <-chan bool) error {
+	log.GlobalLog.Log("info", "Replayer starting...")
+
+	replayPath := filepath.Join(config.CONFIG.WorkDir, "snaps.zip")
+	replayer, err := tic.NewReplayer(replayPath)
+
+	wsClient, err := websocket.NewWebSocketRawDataClient("drone.alkama.com", 9000, "/jtruk/test")
+	if err != nil {
+		return err
+	}
+	replayer.AddReceiver(wsClient)
+
+	replayer.Run(chUserExitRequest)
+	/*
+		for {
+			select {
+			case <-chUserExitRequest:
+				return nil
+			default:
+				time.Sleep(1 * time.Second)
+			}
+		}*/
+	return nil
 }

@@ -113,7 +113,7 @@ func (tm *TicManager) MsgHandler(msgType message.MsgType, msgData []byte) error 
 func (tm *TicManager) StartMachine(machineConfig string) error {
 	configRunnable, ok := config.CONFIG.Runnables[machineConfig]
 	if !ok {
-		return fmt.Errorf("Could not find runnable setting %s in config.json", machineConfig)
+		return fmt.Errorf("could not find runnable setting %s in config.json", machineConfig)
 	}
 	args := configRunnable.Args
 
@@ -124,7 +124,7 @@ func (tm *TicManager) StartMachine(machineConfig string) error {
 		}
 
 		args = append(args, "--codeimport="+*tm.codeImportPath)
-		args = append(args, "--delay=5")
+		args = append(args, "--delay=1")
 	}
 
 	if tm.codeExportPath != nil {
@@ -162,7 +162,7 @@ func (tm *TicManager) StartMachine(machineConfig string) error {
 
 					tm.Propagate(message.MsgTypeTicState, encCode)
 				}
-				time.Sleep(5 * time.Second)
+				time.Sleep(500 * time.Millisecond)
 			}
 		}()
 	}
@@ -229,7 +229,7 @@ func (tm *TicManager) StartMachine(machineConfig string) error {
 
 func (tm TicManager) readExportCode() (*State, error) {
 	if tm.codeExportPath == nil {
-		return nil, fmt.Errorf("Tried to export code - but export file is not set up")
+		return nil, fmt.Errorf("tried to export code - but export file is not set up")
 	}
 
 	data, err := os.ReadFile(*tm.codeExportPath)
@@ -237,17 +237,17 @@ func (tm TicManager) readExportCode() (*State, error) {
 		return nil, err
 	}
 
-	ts, err := MakeTicStateFromExportData(data)
+	state, err := MakeTicStateFromExportData(data)
 	if err != nil {
 		return nil, err
 	}
 
-	return ts, nil
+	return state, nil
 }
 
 func (tm TicManager) writeImportCode(state State) error {
 	if tm.codeImportPath == nil {
-		return fmt.Errorf("Tried to import code - but import file is not set up")
+		return fmt.Errorf("tried to import code - but import file is not set up")
 	}
 
 	data, err := state.MakeDataToImport()

@@ -2,8 +2,10 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/url"
+	"time"
 
 	"github.com/creativenucleus/bytejammer2/internal/message"
 	"github.com/gorilla/websocket"
@@ -11,33 +13,76 @@ import (
 
 type WebSocketConnection struct {
 	message.MsgPropagator
+	url  url.URL
 	conn *websocket.Conn
 }
 
 // Try to join host:port/path with a websocket connection
 func NewWebSocketConnection(u url.URL) (*WebSocketConnection, error) {
-	ws := &WebSocketConnection{}
-	var err error
-	ws.conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
+	wsc := &WebSocketConnection{
+		url: u,
+	}
+
+	err := wsc.dialConnection()
 	if err != nil {
 		return nil, err
 	}
 
-	go ws.listen()
-
-	return ws, nil
+	return wsc, nil
 }
 
-func (conn *WebSocketConnection) Send(msg message.Msg) error {
-	return conn.conn.WriteJSON(msg)
+func (wsc *WebSocketConnection) dialConnection() error {
+	go func() {
+		for {
+			fmt.Println("Dialing...")
+			var err error
+			wsc.conn, _, err = websocket.DefaultDialer.Dial(wsc.url.String(), nil)
+			if err != nil {
+				fmt.Println("Failed to connect... will retry shortly")
+				time.Sleep(10 * time.Second)
+				continue
+			}
+			fmt.Println("Connection successful")
+
+			err = wsc.listen()
+			wsc.conn = nil
+			if err == nil {
+				return // break out of the loop if no error
+			}
+		}
+	}()
+
+	return nil
 }
 
-func (ws *WebSocketConnection) listen() {
+func (wsc *WebSocketConnection) Send(msg message.Msg) error {
+	if wsc.conn == nil {
+		fmt.Println("No active connection - no message sent (stalling)")
+		return nil
+	}
+	return wsc.conn.WriteJSON(msg)
+}
+
+func (wsc *WebSocketConnection) SendRaw(data []byte) error {
+	if wsc.conn == nil {
+		fmt.Println("No active connection - no message sent (stalling)")
+		return nil
+	}
+
+	return wsc.conn.WriteMessage(websocket.TextMessage, data)
+}
+
+func (ws *WebSocketConnection) listen() error {
 	for {
 		messageType, data, err := ws.conn.ReadMessage()
 		if err != nil {
-			log.Println("read:", err)
-			continue
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseAbnormalClosure) {
+				log.Println("Connection unexpectedly closed")
+				return err
+			}
+
+			log.Println("unhandled socket read error:", err)
+			return err
 		}
 
 		if messageType != websocket.TextMessage {
@@ -53,4 +98,6 @@ func (ws *WebSocketConnection) listen() {
 
 		ws.Propagate(msg.Type, msg.Data)
 	}
+
+	return nil
 }

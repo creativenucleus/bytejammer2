@@ -9,7 +9,6 @@ import (
 
 	"github.com/creativenucleus/bytejammer2/internal/message"
 	"github.com/creativenucleus/bytejammer2/internal/websocket"
-	gorillaWS "github.com/gorilla/websocket"
 	"github.com/tyler-sommer/stick"
 )
 
@@ -29,28 +28,12 @@ func NewKioskClient(
 		ControlPanel: *NewControlPanel(port, fmt.Sprintf("Go to http://localhost:%d/", port)),
 	}
 
+	chError := make(chan error)
+
 	kc.router.HandleFunc("/", kc.webKioskIndex)
-	kc.router.HandleFunc("/ws-kiosk", websocket.NewWebSocketHandler(func(ws websocket.WebSocket) {
+	kc.router.HandleFunc("/ws-kiosk", websocket.NewWebSocketMsgHandler(func(msgType message.MsgType, msgData []byte) {
 
-		messageType, msgData, err := ws.Conn.ReadMessage()
-		if err != nil {
-			fmt.Println("read:", err)
-			return
-		}
-
-		if messageType != gorillaWS.BinaryMessage {
-			fmt.Println("messageType is not Binary")
-			return
-		}
-
-		var msgHeader message.MsgHeader
-		err = json.Unmarshal(msgData, &msgHeader)
-		if err != nil {
-			fmt.Printf("Error unmarshalling header: %s\n", err)
-			return
-		}
-
-		switch msgHeader.Type {
+		switch msgType {
 		case message.MsgTypeKioskMakeSnapshot:
 			body := struct {
 				Data message.MsgDataMakeSnapshot `json:"data"`
@@ -67,9 +50,9 @@ func NewKioskClient(
 			chNewPlayer <- true
 
 		default:
-			fmt.Printf("Message not understood: %s\n", msgHeader.Type)
+			fmt.Printf("Message not understood: %s\n", msgType)
 		}
-	}))
+	}, chError))
 
 	return &kc
 }

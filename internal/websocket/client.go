@@ -3,7 +3,6 @@ package websocket
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/url"
 
 	"github.com/creativenucleus/bytejammer2/internal/message"
@@ -25,7 +24,7 @@ func NewWebSocketRawDataClient(host string, port int, path string) (*WebSocketRa
 		Host:   fmt.Sprintf("%s:%d", host, port),
 		Path:   path,
 	}
-	log.Printf("-> Connecting to %s", u.String())
+	fmt.Printf("-> Connecting to %s", u.String())
 
 	ws := &WebSocketRawData{}
 	var err error
@@ -60,6 +59,8 @@ func (ws *WebSocketRawData) MsgHandler(msgType message.MsgType, msgData []byte) 
 		return ws.conn.WriteMessage(websocket.TextMessage, data)
 	case message.MsgTypeTicSnapshot:
 		fmt.Println("OH!")
+	default:
+		fmt.Printf("UHOH (msgtype=%s)\n", msgType)
 	}
 
 	return nil
