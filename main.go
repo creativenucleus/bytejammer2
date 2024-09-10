@@ -556,7 +556,7 @@ func runJukebox(chUserExitRequest <-chan bool) error {
 	}
 }
 
-func runRecorder(chUserExitRequest <-chan bool) error {
+func runRecorder(chUserExitRequest <-chan bool, updateDuration time.Duration) error {
 	recorderPath := filepath.Join(config.CONFIG.WorkDir, "recorder")
 	err := files.EnsurePathExists(recorderPath, 0755)
 	if err != nil {

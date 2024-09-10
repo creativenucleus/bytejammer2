@@ -1,10 +1,13 @@
 package tic
 
 import (
+	"archive/zip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/creativenucleus/bytejammer2/internal/log"
@@ -25,8 +28,6 @@ func NewRecorder(basePath string) (*Recorder, error) {
 }
 
 func (r *Recorder) MsgHandler(msgType message.MsgType, msgData []byte) error {
-	log.GlobalLog.Log("info", "Recorder starting")
-
 	switch msgType {
 	case message.MsgTypeTicState:
 		var ticState State
@@ -56,4 +57,58 @@ func (r *Recorder) MsgHandler(msgType message.MsgType, msgData []byte) error {
 	}
 
 	return nil
+}
+
+// Put everything into a zip file...
+func (r *Recorder) Close() error {
+	log.GlobalLog.Log("info", "Recorder closing")
+
+	t := time.Now()
+	zipFilename := filepath.Join(r.basePath, fmt.Sprintf("recorder-%s.zip", t.Format("2006-01-02-15-04-05")))
+	archive, err := os.Create(zipFilename)
+	if err != nil {
+		return err
+	}
+	defer archive.Close()
+	zipWriter := zip.NewWriter(archive)
+
+	fileInfo, err := os.ReadDir(r.basePath)
+	if err != nil {
+		return err
+	}
+
+	reFilename := regexp.MustCompile(`^snap-(\d{1,20})$`)
+	for _, file := range fileInfo {
+		if file.IsDir() {
+			continue
+		}
+
+		if !reFilename.MatchString(file.Name()) {
+			continue
+		}
+
+		snapFilename := filepath.Join(r.basePath, file.Name())
+		snapFP, err := os.Open(snapFilename)
+		if err != nil {
+			return err
+		}
+		defer snapFP.Close()
+
+		fileWriter, err := zipWriter.Create(file.Name())
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(fileWriter, snapFP)
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(snapFilename)
+		if err != nil {
+			return err
+		}
+	}
+
+	return zipWriter.Close()
 }
