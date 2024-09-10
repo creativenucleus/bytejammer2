@@ -77,6 +77,7 @@ func (r *Recorder) Close() error {
 		return err
 	}
 
+	var filesToRemove []string
 	reFilename := regexp.MustCompile(`^snap-(\d{1,20})$`)
 	for _, file := range fileInfo {
 		if file.IsDir() {
@@ -87,28 +88,48 @@ func (r *Recorder) Close() error {
 			continue
 		}
 
-		snapFilename := filepath.Join(r.basePath, file.Name())
-		snapFP, err := os.Open(snapFilename)
+		snapFilepath := filepath.Join(r.basePath, file.Name())
+
+		// Add file wrapper (to handle defer)
+		err = func(zw *zip.Writer, filepath string, filename string) error {
+			snapFP, err := os.Open(snapFilepath)
+			if err != nil {
+				return err
+			}
+			defer snapFP.Close()
+
+			fileWriter, err := zipWriter.Create(filename)
+			if err != nil {
+				return err
+			}
+
+			_, err = io.Copy(fileWriter, snapFP)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}(zipWriter, snapFilepath, file.Name())
 		if err != nil {
 			return err
 		}
-		defer snapFP.Close()
 
-		fileWriter, err := zipWriter.Create(file.Name())
-		if err != nil {
-			return err
-		}
+		filesToRemove = append(filesToRemove, snapFilepath)
+	}
 
-		_, err = io.Copy(fileWriter, snapFP)
-		if err != nil {
-			return err
-		}
+	err = zipWriter.Close()
+	if err != nil {
+		return err
+	}
 
-		err = os.Remove(snapFilename)
+	// Delete all the snap files
+	for _, filename := range filesToRemove {
+		fmt.Printf("Removing: %s\n", filename)
+		err = os.Remove(filename)
 		if err != nil {
 			return err
 		}
 	}
 
-	return zipWriter.Close()
+	return nil
 }

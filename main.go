@@ -177,7 +177,8 @@ func runCli() error {
 				Name:  "recorder",
 				Usage: "run a default recorder",
 				Action: func(*cli.Context) error {
-					return runRecorder(keyboard.ChUserExitRequest)
+					updateDuration := 1 * time.Second
+					return runRecorder(keyboard.ChUserExitRequest, updateDuration)
 				},
 			},
 			{
@@ -583,9 +584,9 @@ func runRecorder(chUserExitRequest <-chan bool, updateDuration time.Duration) er
 	for {
 		select {
 		case <-chUserExitRequest:
-			return nil
+			return recorder.Close()
 		default:
-			time.Sleep(1 * time.Second)
+			time.Sleep(updateDuration)
 		}
 	}
 }
