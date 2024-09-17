@@ -1,6 +1,7 @@
 package kiosk
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -19,34 +20,8 @@ import (
 	term "github.com/nsf/termbox-go"
 )
 
-var defaultKioskStarterCode = []byte(
-	"-- Welcome to the ByteWall!\n" +
-		"-- Please delete this code and play.\n" +
-		"--\n" +
-		"-- Any issues? Find Violet =)\n" +
-		"--\n" +
-		"-- Have fun!\n" +
-		"-- /jtruk + /VioletRaccoon\n" +
-		"\n" +
-		"function TIC()\n" +
-		"	local t=time()*.001\n" +
-		"	for y=0,135 do\n" +
-		"		for x=0,239 do\n" +
-		"			local dx=120-x\n" +
-		"			local dy=68-y\n" +
-		"			local d=(dx^2+dy^2)^.5\n" +
-		"			local a=math.atan2(dy,dx)\n" +
-		"			pix(x,y,8+math.sin(d*.1+a-t)*3)\n" +
-		"		end\n" +
-		"	end\n" +
-		"\n" +
-		"	local text=\"ByteWall!\"\n" +
-		"	local x=50\n" +
-		"	local y=75-math.abs(math.sin(t*3)*30)\n" +
-		"	print(text,x+1,y+1,15,false,3)\n" +
-		"	print(text,x,y,12,false,3)\n" +
-		"end",
-)
+//go:embed defaultKioskStarterCode.lua
+var defaultKioskStarterCode []byte
 
 func RunClient(chUserExitRequest <-chan bool, chKeyPress <-chan term.Key, socketURL url.URL, kioskStarterCodePath string) error {
 	kioskClientPath := filepath.Join(config.CONFIG.WorkDir, "kiosk-client-snapshots")
