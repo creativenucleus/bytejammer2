@@ -1,4 +1,4 @@
-package main
+package jukebox
 
 import (
 	"encoding/json"
@@ -8,17 +8,18 @@ import (
 	"github.com/creativenucleus/bytejammer2/config"
 	"github.com/creativenucleus/bytejammer2/internal/log"
 	"github.com/creativenucleus/bytejammer2/internal/message"
+	"github.com/creativenucleus/bytejammer2/internal/playlist"
 	"github.com/creativenucleus/bytejammer2/internal/tic"
 )
 
 // Jukebox contains a playlist and periodically sends a TIC-80 state from the playlist
 type Jukebox struct {
 	message.MsgPropagator
-	playlist      Playlist
+	playlist      playlist.Playlist
 	sceneDuration time.Duration
 }
 
-func NewJukebox(playlist Playlist) *Jukebox {
+func NewJukebox(playlist playlist.Playlist) *Jukebox {
 	l := &Jukebox{
 		playlist:      playlist,
 		sceneDuration: time.Duration(uint(time.Second) * config.CONFIG.Jukebox.RotatePeriodInSeconds),
@@ -30,18 +31,22 @@ func (j *Jukebox) SetSceneDuration(sceneDuration time.Duration) {
 	j.sceneDuration = sceneDuration
 }
 
-func (j *Jukebox) run() error {
+func (j *Jukebox) Playlist() playlist.Playlist {
+	return j.playlist
+}
+
+func (j *Jukebox) Run() error {
 	log.GlobalLog.Log("info", "Jukebox starting with rotation period of "+j.sceneDuration.String())
 
 	for {
-		item, err := j.playlist.getNext()
+		item, err := j.playlist.GetNext()
 		if err != nil {
 			// TODO: Handle error / log
 			continue
 		}
 
-		state := tic.MakeTicStateRunning(item.code)
-		log.GlobalLog.Log("info", fmt.Sprintf("Jukebox running Lua file: %s %s %s", item.author, item.description, item.location))
+		state := tic.MakeTicStateRunning(item.Code())
+		log.GlobalLog.Log("info", fmt.Sprintf("Jukebox running Lua file: %s %s %s", item.Author(), item.Description(), item.Location()))
 
 		data, err := json.Marshal(state)
 		if err != nil {

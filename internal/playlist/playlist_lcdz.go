@@ -1,4 +1,4 @@
-package main
+package playlist
 
 // PlaylistLCDZ creates a playlist by assembling Lua files from the LCDZ Byte Jam page
 

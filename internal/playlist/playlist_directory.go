@@ -1,4 +1,4 @@
-package main
+package playlist
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ var reLuaFile = regexp.MustCompile(`\.lua$`)
 
 func NewPlaylistDirectory(directory string) (*Playlist, error) {
 	p := Playlist{}
-	err := p.syncWithDirectory(directory)
+	err := p.SyncWithDirectory(directory)
 	if err != nil {
 		return nil, err
 	}
@@ -21,7 +21,7 @@ func NewPlaylistDirectory(directory string) (*Playlist, error) {
 }
 
 // #TODO: deduplicate, and remove those that don't exist
-func (p *Playlist) syncWithDirectory(directory string) error {
+func (p *Playlist) SyncWithDirectory(directory string) error {
 	dirEntries, err := os.ReadDir(directory)
 	if err != nil {
 		return err

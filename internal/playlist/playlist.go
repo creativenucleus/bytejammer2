@@ -1,4 +1,4 @@
-package main
+package playlist
 
 import (
 	"errors"
@@ -22,6 +22,22 @@ type PlaylistItem struct {
 	code        []byte
 }
 
+func (p PlaylistItem) Location() string {
+	return p.location
+}
+
+func (p PlaylistItem) Author() string {
+	return p.author
+}
+
+func (p PlaylistItem) Description() string {
+	return p.description
+}
+
+func (p PlaylistItem) Code() []byte {
+	return p.code
+}
+
 type IPlaylist interface {
 }
 
@@ -39,15 +55,15 @@ func NewPlaylist() *Playlist {
 	}
 }
 
-func (p *Playlist) length() int {
+func (p Playlist) Length() int {
 	return len(p.items)
 }
 
-func (p *Playlist) isEmpty() bool {
+func (p *Playlist) IsEmpty() bool {
 	return len(p.items) == 0
 }
 
-func (p *Playlist) getNext() (*PlaylistItem, error) {
+func (p *Playlist) GetNext() (*PlaylistItem, error) {
 	if len(p.items) == 0 {
 		return nil, errors.New("Playlist is empty")
 	}
