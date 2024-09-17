@@ -99,7 +99,7 @@ func runCli() error {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "socketurl",
-						Usage:    "URL (e.g. ws://drone.alkama.com:9000/bytejammer/evoke)",
+						Usage:    "URL (e.g. ws://drone.alkama.com:9000/bytejammer/test)",
 						Required: true,
 					},
 					&cli.StringFlag{
@@ -124,7 +124,7 @@ func runCli() error {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "socketurl",
-						Usage:    "URL (e.g. ws://drone.alkama.com:9000/bytejammer/evoke)",
+						Usage:    "URL (e.g. ws://drone.alkama.com:9000/bytejammer/test)",
 						Required: true,
 					},
 				},

@@ -20,9 +20,9 @@ Put TIC.exe and .dlls in the tic/ directory
 
 # Run two CLI windows with matching socketurl
 
-bytejammer2.exe kiosk-client --socketurl ws://drone.alkama.com:9000/bytejammer/evoke
+bytejammer2.exe kiosk-client --socketurl ws://drone.alkama.com:9000/bytejammer/test
 
-bytejammer2.exe kiosk-server --socketurl ws://drone.alkama.com:9000/bytejammer/evoke
+bytejammer2.exe kiosk-server --socketurl ws://drone.alkama.com:9000/bytejammer/test
 
 # Snapshots
 
