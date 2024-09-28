@@ -15,11 +15,11 @@ import (
 // Jukebox contains a playlist and periodically sends a TIC-80 state from the playlist
 type Jukebox struct {
 	message.MsgPropagator
-	playlist      playlist.Playlist
+	playlist      *playlist.Playlist
 	sceneDuration time.Duration
 }
 
-func NewJukebox(playlist playlist.Playlist) *Jukebox {
+func NewJukebox(playlist *playlist.Playlist) *Jukebox {
 	l := &Jukebox{
 		playlist:      playlist,
 		sceneDuration: time.Duration(uint(time.Second) * config.CONFIG.Jukebox.RotatePeriodInSeconds),
@@ -31,29 +31,41 @@ func (j *Jukebox) SetSceneDuration(sceneDuration time.Duration) {
 	j.sceneDuration = sceneDuration
 }
 
-func (j *Jukebox) Playlist() playlist.Playlist {
+func (j *Jukebox) Playlist() *playlist.Playlist {
 	return j.playlist
 }
 
-func (j *Jukebox) Run() error {
+func (j *Jukebox) Run(forceRestart <-chan bool) error {
 	log.GlobalLog.Log("info", "Jukebox starting with rotation period of "+j.sceneDuration.String())
 
+	sceneTicker := time.NewTicker(j.sceneDuration)
+
 	for {
-		item, err := j.playlist.GetNext()
-		if err != nil {
-			// TODO: Handle error / log
-			continue
+		select {
+		case <-sceneTicker.C:
+			j.playNext()
+		case <-forceRestart:
+			j.playNext()
+			sceneTicker.Reset(j.sceneDuration)
 		}
-
-		state := tic.MakeTicStateRunning(item.Code())
-		log.GlobalLog.Log("info", fmt.Sprintf("Jukebox running Lua file: %s %s %s", item.Author(), item.Description(), item.Location()))
-
-		data, err := json.Marshal(state)
-		if err != nil {
-			return err
-		}
-
-		j.Propagate(message.MsgTypeTicState, data)
-		time.Sleep(j.sceneDuration)
 	}
+}
+
+func (j *Jukebox) playNext() error {
+	item, err := j.playlist.GetNext()
+	if err != nil {
+		// TODO: Handle error / log
+		return err
+	}
+
+	state := tic.MakeTicStateRunning(item.Code())
+	log.GlobalLog.Log("info", fmt.Sprintf("Jukebox running Lua file: %s %s %s", item.Author(), item.Description(), item.Location()))
+
+	data, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+
+	j.Propagate(message.MsgTypeTicState, data)
+	return nil
 }

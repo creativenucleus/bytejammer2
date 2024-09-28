@@ -321,10 +321,11 @@ func runJukebox(chUserExitRequest <-chan bool) error {
 		return err
 	}
 
-	LcdzJukebox := jukebox.NewJukebox(*playlist)
+	chRestartJukebox := make(<-chan bool) // Unused
+	LcdzJukebox := jukebox.NewJukebox(playlist)
 	LcdzJukebox.AddReceiver(ticManager)
 	go func() {
-		LcdzJukebox.Run()
+		LcdzJukebox.Run(chRestartJukebox)
 	}()
 
 	for {

@@ -36,11 +36,20 @@ func RunServer(chUserExitRequest <-chan bool, socketURL url.URL) error {
 	// Set up Kiosk Server - this listens for snapshots and adds them to the directory
 	kioskServer := tic.NewKioskServer(kioskPath)
 	log.GlobalLog.Log("info", fmt.Sprintf("Kiosk Server: Connecting to: %s", socketURL.String()))
-	wsConn, err := websocket.NewWebSocketConnection(socketURL)
+	/*
+		wsConn, err := websocket.NewWebSocketConnection(socketURL)
+		if err != nil {
+			return err
+		}
+		wsConn.AddReceiver(kioskServer)
+	*/
+
+	// #Unhardcode!
+	wsServer, err := websocket.NewWebSocketServer(8085, "/kiosk")
 	if err != nil {
 		return err
 	}
-	wsConn.AddReceiver(kioskServer)
+	wsServer.AddReceiver(kioskServer)
 
 	// Set up the TIC, this picks from the playlist directory...
 	codeImportPath := filepath.Join(config.CONFIG.WorkDir, "kiosk-server-import.lua")
@@ -59,31 +68,31 @@ func RunServer(chUserExitRequest <-chan bool, socketURL url.URL) error {
 		return err
 	}
 
-	jukebox := jukebox.NewJukebox(*playlist)
+	chRestartJukebox := make(chan bool)
+	jukebox := jukebox.NewJukebox(playlist)
 	jukebox.AddReceiver(ticManager)
 	log.GlobalLog.Log("info", fmt.Sprintf("jukebox running from path: %s", kioskPath))
 	go func() {
-		jukebox.Run()
+		jukebox.Run(chRestartJukebox)
 	}()
 
-	ticker := time.NewTicker(5 * time.Second)
-	lastPlaylistLength := -1
+	ticker := time.NewTicker(1 * time.Second)
 	for {
 		select {
 		case <-ticker.C:
 			// #TODO: Beware of sync issues (e.g. deleted files)
 			// #TODO: playlist copy
-			length := jukebox.Playlist().Length()
-			playlist := jukebox.Playlist()
-			err := playlist.SyncWithDirectory(kioskPath)
+			isUpdated, err := playlist.SyncWithDirectory(kioskPath)
 			if err != nil {
 				// #TODO: Error?
 				continue
 			}
-			if length != lastPlaylistLength {
-				fmt.Printf("Playlist length is now: %d\n", length)
+
+			if isUpdated {
+				length := jukebox.Playlist().Length()
+				fmt.Printf("Playlist updated - length is now: %d\n", length)
+				chRestartJukebox <- true
 			}
-			lastPlaylistLength = length
 
 		case <-chUserExitRequest:
 			return nil

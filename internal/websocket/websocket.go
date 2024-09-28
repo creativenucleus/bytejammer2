@@ -75,3 +75,34 @@ func NewWebSocketMsgHandler(
 
 	return NewWebSocketHandler(readerFn, chError)
 }
+
+// #TODO: Make less brittle
+func propagateIncomingMessages(conn *websocket.Conn, propagate MsgHandlerFn) error {
+	for {
+		messageType, data, err := conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseAbnormalClosure) {
+				//				log.Println("Connection unexpectedly closed")
+				return err
+			}
+
+			//			log.Println("unhandled socket read error:", err)
+			return err
+		}
+
+		if messageType != websocket.TextMessage {
+			//			log.Println("messageType is not Text")
+			continue
+		}
+
+		var msg message.Msg
+		err = json.Unmarshal(data, &msg)
+		if err != nil {
+			break
+		}
+
+		propagate(msg.Type, msg.Data)
+	}
+
+	return nil
+}

@@ -1,9 +1,7 @@
 package websocket
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"net/url"
 	"time"
 
@@ -73,31 +71,7 @@ func (wsc *WebSocketConnection) SendRaw(data []byte) error {
 }
 
 func (ws *WebSocketConnection) listen() error {
-	for {
-		messageType, data, err := ws.conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseAbnormalClosure) {
-				log.Println("Connection unexpectedly closed")
-				return err
-			}
-
-			log.Println("unhandled socket read error:", err)
-			return err
-		}
-
-		if messageType != websocket.TextMessage {
-			log.Println("messageType is not Text")
-			continue
-		}
-
-		var msg message.Msg
-		err = json.Unmarshal(data, &msg)
-		if err != nil {
-			break
-		}
-
-		ws.Propagate(msg.Type, msg.Data)
-	}
-
-	return nil
+	return propagateIncomingMessages(ws.conn, func(msgType message.MsgType, msgData []byte) {
+		ws.Propagate(msgType, msgData)
+	})
 }
