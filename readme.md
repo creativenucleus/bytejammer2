@@ -35,9 +35,10 @@
 .\bytejammer2.exe kiosk-server --connection host --port 8900 --endpoint /kiosk/listener
 
 .\bytejammer2.exe kiosk-client --url ws://localhost:8900/kiosk/listener
-(optional --startercodepath a/path/to/a/lua/file)
-(this launches a webpanel available at http://localhost:9000)
+
+(optional --startercodepath a/path/to/a/lua/file.lua)
 ```
+(this launches a webpanel available at http://localhost:9000)
 
 ## Goals
 
