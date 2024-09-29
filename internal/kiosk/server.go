@@ -15,7 +15,18 @@ import (
 	"github.com/creativenucleus/bytejammer2/internal/websocket"
 )
 
-func RunServer(chUserExitRequest <-chan bool, socketURL url.URL) error {
+// should either have a client or a host set
+type ServerConfig struct {
+	Client struct {
+		Url url.URL
+	}
+	Host struct {
+		Port     int
+		Endpoint string // starts with /
+	}
+}
+
+func RunServer(chUserExitRequest <-chan bool, c ServerConfig) error {
 	/*
 		_, err := controlpanel.Start(config.CONFIG.ControlPanel.Port)
 		if err != nil {
@@ -35,21 +46,27 @@ func RunServer(chUserExitRequest <-chan bool, socketURL url.URL) error {
 
 	// Set up Kiosk Server - this listens for snapshots and adds them to the directory
 	kioskServer := tic.NewKioskServer(kioskPath)
-	log.GlobalLog.Log("info", fmt.Sprintf("Kiosk Server: Connecting to: %s", socketURL.String()))
-	/*
-		wsConn, err := websocket.NewWebSocketConnection(socketURL)
+
+	// #TODO: There will be a better way to do this
+	if c.Client.Url.String() != "" {
+		log.GlobalLog.Log("info", fmt.Sprintf("Kiosk Server: Client for: %s", c.Client.Url.String()))
+
+		wsClient, err := websocket.NewWebSocketConnection(c.Client.Url)
 		if err != nil {
 			return err
 		}
-		wsConn.AddReceiver(kioskServer)
-	*/
+		wsClient.AddReceiver(kioskServer)
+	} else if c.Host.Port != 0 || c.Host.Endpoint == "" {
+		log.GlobalLog.Log("info", fmt.Sprintf("Kiosk Server: Host at: %d:%s", c.Host.Port, c.Host.Endpoint))
 
-	// #Unhardcode!
-	wsServer, err := websocket.NewWebSocketServer(8085, "/kiosk")
-	if err != nil {
-		return err
+		wsServer, err := websocket.NewWebSocketServer(c.Host.Port, c.Host.Endpoint)
+		if err != nil {
+			return err
+		}
+		wsServer.AddReceiver(kioskServer)
+	} else {
+		return fmt.Errorf("no client or host set properly")
 	}
-	wsServer.AddReceiver(kioskServer)
 
 	// Set up the TIC, this picks from the playlist directory...
 	codeImportPath := filepath.Join(config.CONFIG.WorkDir, "kiosk-server-import.lua")
