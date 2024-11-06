@@ -2,6 +2,8 @@
 
 This is a rebuild / experimental build. I'll almost certainly eventually collapse it into the [ByteJammer v1](https://github.com/creativenucleus/bytejammer2) repo.
 
+This project is **NOT** ready for outside contributions just now, but that time will come!  
+
 [Latest Code and documentation - GitHub](https://github.com/creativenucleus/bytejammer2)
 
 For celebration of the TIC-80 livecoding / effects scene.
