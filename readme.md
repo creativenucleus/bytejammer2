@@ -25,6 +25,8 @@ A config.json file is required.
 
 An example _config.json file is provided. Please remove the underscore from the filename and edit that file as appropriate.
 
+Please note: Some functionality requires a [custom version of the Bytebattle build](https://github.com/creativenucleus/TIC-80-bytebattle) that permits reading AND writing from the filesystem (the standard version permits reading OR writing).
+
 ### Example config.json
 
 ```json
