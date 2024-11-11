@@ -28,203 +28,227 @@ func main() {
 }
 
 func runCli() error {
-	err := config.LoadGlobal("./config.json")
-	if err != nil {
-		return err
-	}
-
+	// Run keyboard capture in a goroutine.
+	// Functions can listen to this on a channel...
 	keyboard := keyboard.NewKeyboard()
 	go keyboard.Start()
 
 	app := &cli.App{
-		/*        Flags: []cli.Flag{
-		          &cli.StringFlag{
-		              Name:    "lang",
-		              Aliases: []string{"l"},
-		              Value:   "english",
-		              Usage:   "Language for the greeting",
-		          },
-		          &cli.StringFlag{
-		              Name:    "config",
-		              Aliases: []string{"c"},
-		              Usage:   "Load configuration from `FILE`",
-		          },
-		      },*/
-		Commands: []*cli.Command{
-			{
-				Name:  "sender",
-				Usage: "run a socket sender",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:     "socketurl",
-						Usage:    "URL (e.g. ws://drone.alkama.com:9000/room/username)",
-						Required: true,
-					},
-					&cli.StringFlag{
-						Name:     "filepath",
-						Usage:    "File to watch (e.g. C:/Users/username/Documents/MyFile.lua)",
-						Required: true,
-					},
-				},
-				Action: func(cCtx *cli.Context) error {
-					inputURL := cCtx.String("socketurl")
-					if inputURL == "" {
-						panic("socketurl is required")
-					}
-
-					socketURL, err := url.Parse(inputURL)
-					if err != nil {
-						panic(err)
-					}
-					filepath := cCtx.String("filepath")
-
-					checkFrequency := 2 * time.Second
-					return runSender(*socketURL, filepath, checkFrequency)
-				},
-			},
-			/*			{
-							Name:  "client",
-							Usage: "run a default client",
-							Action: func(*cli.Context) error {
-								return runClient()
-							},
-						},
-			*/
-
-			{
-				Name:  "server",
-				Usage: "run a default server",
-				Action: func(*cli.Context) error {
-					return runServer()
-				},
-			},
-			{
-				Name:  "kiosk-client",
-				Usage: "run a kiosk client",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:     "url",
-						Usage:    "URL (e.g. ws://drone.alkama.com:9000/bytejammer/test)",
-						Required: true,
-					},
-					&cli.StringFlag{
-						Name:  "startercodepath",
-						Usage: "A filepath pointing to a Lua file to be the starter code",
-					},
-				},
-				Action: func(cCtx *cli.Context) error {
-					inputURL := cCtx.String("url")
-					if inputURL == "" {
-						panic("URL is required")
-					}
-
-					u, err := url.Parse(inputURL)
-					if err != nil {
-						panic(err)
-					}
-
-					startercodepath := cCtx.String("startercodepath")
-
-					return kiosk.RunClient(keyboard.ChUserExitRequest, keyboard.ChKeyPress, *u, startercodepath)
-				},
-			},
-			{
-				Name:  "kiosk-server",
-				Usage: "run a kiosk server",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:     "connection",
-						Usage:    "One of: client, host",
-						Required: true,
-					},
-					&cli.StringFlag{
-						Name:  "url",
-						Usage: "URL (e.g. ws://drone.alkama.com:9000/bytejammer/test)",
-					},
-					&cli.StringFlag{
-						Name:  "port",
-						Usage: "A port to serve from (e.g. 9123)",
-					},
-					&cli.StringFlag{
-						Name:  "endpoint",
-						Usage: "Endpoint to serve from (e.g. /mykiosk/server)",
-					},
-				},
-				Action: func(cCtx *cli.Context) error {
-					connectionType := cCtx.String("connection")
-					if err != nil {
-						panic(err)
-					}
-
-					config := kiosk.ServerConfig{}
-					if connectionType == "client" {
-						inputURL := cCtx.String("url")
-						if inputURL == "" {
-							panic("URL is required for client connection type")
-						}
-
-						clientURL, err := url.Parse(inputURL)
-						if err != nil {
-							panic(err)
-						}
-
-						config.Client.Url = *clientURL
-					} else if connectionType == "host" {
-						port := cCtx.Int("port")
-						if port == 0 {
-							panic("port is required for host connection type")
-						}
-
-						endpoint := cCtx.String("endpoint")
-						if endpoint == "" {
-							panic("endpoint is required for host connection type")
-						}
-
-						config.Host.Port = port
-						config.Host.Endpoint = endpoint
-					} else {
-						panic("Invalid connection type")
-					}
-
-					return kiosk.RunServer(keyboard.ChUserExitRequest, config)
-				},
-			},
-			{
-				Name:  "jukebox",
-				Usage: "run a default jukebox",
-				Action: func(*cli.Context) error {
-					return runJukebox(keyboard.ChUserExitRequest)
-				},
-			},
-			{
-				Name:  "recorder",
-				Usage: "run a default recorder",
-				Action: func(*cli.Context) error {
-					updateDuration := 1 * time.Second
-					return runRecorder(keyboard.ChUserExitRequest, updateDuration)
-				},
-			},
-			{
-				Name:  "replayer",
-				Usage: "run a default replayer",
-				Action: func(*cli.Context) error {
-					return runReplayer(keyboard.ChUserExitRequest)
-				},
+		Name:  "ByteJammer",
+		Usage: "A Multitool for Socket-Based Livecoding",
+		//		Version:  "v2.0.0",
+		Compiled: time.Now(), // Does this actually work? It feels like it shouldn't!
+		Authors: []*cli.Author{{
+			Name: "James Rutherford (jtruk)",
+		}},
+		Copyright: "(c) James Rutherford",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "config",
+				Usage: "Load configuration from the specified file",
+				Value: "./config.json",
 			},
 		},
+		Before: func(cCtx *cli.Context) error {
+			// Load the configuration file before running any other commands
+			configFile := cCtx.String("config")
+			return config.LoadGlobal(configFile)
+		},
+		Commands: []*cli.Command{{
+			Name:  "sender",
+			Usage: "Starts a basic socket sender. It connects to a websocket and periodically posts the contents of a watched file",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "socketurl",
+					Usage:    "URL (e.g. ws://drone.alkama.com:9000/room/username)",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:     "filepath",
+					Usage:    "File to watch (e.g. C:/Users/username/Documents/MyFile.lua)",
+					Required: true,
+				},
+			},
+			Action: func(cCtx *cli.Context) error {
+				inputSocketURL := cCtx.String("socketurl")
+				if inputSocketURL == "" {
+					panic("socketurl is required")
+				}
+
+				socketURL, err := url.Parse(inputSocketURL)
+				if err != nil {
+					panic(err)
+				}
+				filepath := cCtx.String("filepath")
+
+				checkFrequency := 2 * time.Second
+				return runSender(keyboard.ChUserExitRequest, *socketURL, filepath, checkFrequency)
+			},
+		}, {
+			Name:  "jukebox",
+			Usage: "Starts a local jukebox of effects",
+			Action: func(*cli.Context) error {
+				return runJukebox(keyboard.ChUserExitRequest)
+			},
+		}, {
+			Name:  "client",
+			Usage: "run a default TIC-80 client",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "socketurl",
+					Usage:    "URL (e.g. ws://drone.alkama.com:9000/room/username)",
+					Required: true,
+				},
+			},
+			Action: func(cCtx *cli.Context) error {
+				inputSocketURL := cCtx.String("socketurl")
+				if inputSocketURL == "" {
+					panic("socketurl is required")
+				}
+
+				socketURL, err := url.Parse(inputSocketURL)
+				if err != nil {
+					panic(err)
+				}
+
+				return runClient(keyboard.ChUserExitRequest, *socketURL)
+			},
+		}, {
+			Name:  "server",
+			Usage: "Starts a server for managing a livecoding session",
+			Action: func(*cli.Context) error {
+				return runServer(keyboard.ChUserExitRequest)
+			},
+		}, {
+			Name:  "record",
+			Usage: "Starts a recorder that listens to a TIC-80 machine and records snapshots of the machine state",
+			Action: func(*cli.Context) error {
+				updateDuration := 1 * time.Second
+				return runRecorder(keyboard.ChUserExitRequest, updateDuration)
+			},
+		}, {
+			Name:  "replay",
+			Usage: "Starts a replayer that re-runs the snapshots from a recorder",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "socketurl",
+					Usage:    "URL (e.g. ws://drone.alkama.com:9000/room/username)",
+					Required: true,
+				},
+			},
+			Action: func(cCtx *cli.Context) error {
+				inputSocketURL := cCtx.String("socketurl")
+				if inputSocketURL == "" {
+					panic("socketurl is required")
+				}
+
+				socketURL, err := url.Parse(inputSocketURL)
+				if err != nil {
+					panic(err)
+				}
+
+				return runReplayer(keyboard.ChUserExitRequest, *socketURL)
+			},
+		}, {
+			Name:  "kiosk-client",
+			Usage: "Starts a kiosk client - for players on a ByteWall",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "url",
+					Usage:    "URL (e.g. ws://drone.alkama.com:9000/bytejammer/test)",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:  "startercodepath",
+					Usage: "A filepath pointing to a Lua file to be the starter code",
+				},
+			},
+			Action: func(cCtx *cli.Context) error {
+				inputURL := cCtx.String("url")
+				if inputURL == "" {
+					panic("URL is required")
+				}
+
+				u, err := url.Parse(inputURL)
+				if err != nil {
+					panic(err)
+				}
+
+				startercodepath := cCtx.String("startercodepath")
+
+				return kiosk.RunClient(keyboard.ChUserExitRequest, keyboard.ChKeyPress, *u, startercodepath)
+			},
+		}, {
+			Name:  "kiosk-server",
+			Usage: "Starts a kiosk server - for displaying ByteWall submissions",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "connection",
+					Usage:    "One of: client, host",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:  "url",
+					Usage: "URL (e.g. ws://drone.alkama.com:9000/bytejammer/test)",
+				},
+				&cli.StringFlag{
+					Name:  "port",
+					Usage: "A port to serve from (e.g. 9123)",
+				},
+				&cli.StringFlag{
+					Name:  "endpoint",
+					Usage: "Endpoint to serve from (e.g. /mykiosk/server)",
+				},
+			},
+			Action: func(cCtx *cli.Context) error {
+				connectionType := cCtx.String("connection")
+
+				config := kiosk.ServerConfig{}
+				if connectionType == "client" {
+					inputURL := cCtx.String("url")
+					if inputURL == "" {
+						panic("URL is required for client connection type")
+					}
+
+					clientURL, err := url.Parse(inputURL)
+					if err != nil {
+						panic(err)
+					}
+
+					config.Client.Url = *clientURL
+				} else if connectionType == "host" {
+					port := cCtx.Int("port")
+					if port == 0 {
+						panic("port is required for host connection type")
+					}
+
+					endpoint := cCtx.String("endpoint")
+					if endpoint == "" {
+						panic("endpoint is required for host connection type")
+					}
+
+					config.Host.Port = port
+					config.Host.Endpoint = endpoint
+				} else {
+					panic("Invalid connection type")
+				}
+
+				return kiosk.RunServer(keyboard.ChUserExitRequest, config)
+			},
+		}},
 	}
 
 	return app.Run(os.Args)
 }
 
-func runSender(socketURL url.URL, filepath string, checkFrequency time.Duration) error {
+func runSender(chUserExitRequest <-chan bool, socketURL url.URL, filepath string, checkFrequency time.Duration) error {
 	// Open a socket
-	log.GlobalLog.Log("info", fmt.Sprintf("Kiosk Client: Connecting to: %s", socketURL.String()))
+	log.GlobalLog.Log("info", fmt.Sprintf("Sender: Connecting to: %s", socketURL.String()))
 	wsConn, err := websocket.NewWebSocketConnection(socketURL)
 	if err != nil {
 		return err
 	}
-	log.GlobalLog.Log("info", fmt.Sprintf("Kiosk Client: Connected to: %s", socketURL.String()))
+	log.GlobalLog.Log("info", fmt.Sprintf("Sender: Connected to: %s", socketURL.String()))
 
 	// Watch a file
 	// Check frequency
@@ -250,6 +274,8 @@ func runSender(socketURL url.URL, filepath string, checkFrequency time.Duration)
 	go func() {
 		for {
 			select {
+			case <-chUserExitRequest:
+				return
 			case <-done:
 				return
 			case dataFromFile := <-chFileDataUpdate:
@@ -297,7 +323,7 @@ func sendRawData(wsConn *websocket.WebSocketConnection, data []byte) error {
 	return nil
 }
 
-func runClient() error {
+func runClient(chUserExitRequest <-chan bool, socketURL url.URL) error {
 	codeExportPath := filepath.Join(config.CONFIG.WorkDir, "export.lua")
 	ticManager, err := tic.NewTicManager(nil, &codeExportPath)
 	if err != nil {
@@ -309,18 +335,25 @@ func runClient() error {
 		return err
 	}
 
-	wsClient, err := websocket.NewWebSocketRawDataClient("drone.alkama.com", 9000, "/jtruk/test")
+	// Open a socket
+	log.GlobalLog.Log("info", fmt.Sprintf("Client: Connecting to: %s", socketURL.String()))
+	wsClient, err := websocket.NewWebSocketRawDataClient(socketURL)
 	if err != nil {
 		return err
 	}
 	ticManager.AddReceiver(wsClient)
 
 	for {
-		time.Sleep(1 * time.Second)
+		select {
+		case <-chUserExitRequest:
+			return nil
+		default:
+			time.Sleep(1 * time.Second)
+		}
 	}
 }
 
-func runServer() error {
+func runServer(chUserExitRequest <-chan bool) error {
 	/*
 		_, err := controlpanel.Start(config.CONFIG.ControlPanel.Port)
 		if err != nil {
@@ -339,7 +372,14 @@ func runServer() error {
 		return err
 	}
 
-	wsClient, err := websocket.NewWebSocketRawDataClient("drone.alkama.com", 9000, "/jtruk/test")
+	// #TODO: Temporary...
+	socketURL := url.URL{
+		Scheme: "ws",
+		Host:   "drone.alkama.com:9000",
+		Path:   "/jtruk/test",
+	}
+
+	wsClient, err := websocket.NewWebSocketRawDataClient(socketURL)
 	if err != nil {
 		return err
 	}
@@ -352,7 +392,12 @@ func runServer() error {
 	}()
 
 	for {
-		time.Sleep(1 * time.Second)
+		select {
+		case <-chUserExitRequest:
+			return nil
+		default:
+			time.Sleep(1 * time.Second)
+		}
 	}
 }
 
@@ -424,7 +469,7 @@ func runRecorder(chUserExitRequest <-chan bool, updateDuration time.Duration) er
 	}
 }
 
-func runReplayer(chUserExitRequest <-chan bool) error {
+func runReplayer(chUserExitRequest <-chan bool, socketURL url.URL) error {
 	log.GlobalLog.Log("info", "Replayer starting...")
 
 	replayPath := filepath.Join(config.CONFIG.WorkDir, "snaps.zip")
@@ -433,7 +478,7 @@ func runReplayer(chUserExitRequest <-chan bool) error {
 		return err
 	}
 
-	wsClient, err := websocket.NewWebSocketRawDataClient("drone.alkama.com", 9000, "/jtruk/test")
+	wsClient, err := websocket.NewWebSocketRawDataClient(socketURL)
 	if err != nil {
 		return err
 	}

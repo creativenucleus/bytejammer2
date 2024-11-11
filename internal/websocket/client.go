@@ -18,17 +18,12 @@ type WebSocketRawData struct {
 }
 
 // Try to join host:port/path with a websocket connection
-func NewWebSocketRawDataClient(host string, port int, path string) (*WebSocketRawData, error) {
-	u := url.URL{
-		Scheme: "ws",
-		Host:   fmt.Sprintf("%s:%d", host, port),
-		Path:   path,
-	}
-	fmt.Printf("-> Connecting to %s", u.String())
+func NewWebSocketRawDataClient(socketURL url.URL) (*WebSocketRawData, error) {
+	fmt.Printf("-> Connecting to %s", socketURL.String())
 
 	ws := &WebSocketRawData{}
 	var err error
-	ws.conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
+	ws.conn, _, err = websocket.DefaultDialer.Dial(socketURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}

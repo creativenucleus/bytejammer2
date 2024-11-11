@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 )
 
@@ -32,12 +33,12 @@ type JukeboxConfig struct {
 func LoadGlobal(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading config file [%s]: %w", path, err)
 	}
 
 	err = json.Unmarshal(data, &CONFIG)
 	if err != nil {
-		return err
+		return fmt.Errorf("error decoding config file [%s]: %w", path, err)
 	}
 
 	if CONFIG.Jukebox.RotatePeriodInSeconds == 0 {
