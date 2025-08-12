@@ -38,7 +38,8 @@ func (p *Playlist) SyncWithDirectory(directory string) (bool, error) {
 		}
 
 		if !reLuaFile.MatchString(entry.Name()) {
-			return false, fmt.Errorf("directory [%s] contains non-lua files", directory)
+			// Skip this one...
+			continue
 		}
 
 		path := filepath.Join(directory, entry.Name())

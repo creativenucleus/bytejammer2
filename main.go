@@ -204,7 +204,8 @@ func runCli() error {
 				connectionType := cCtx.String("connection")
 
 				config := kiosk.ServerConfig{}
-				if connectionType == "client" {
+				switch connectionType {
+				case "client":
 					inputURL := cCtx.String("url")
 					if inputURL == "" {
 						panic("URL is required for client connection type")
@@ -216,7 +217,7 @@ func runCli() error {
 					}
 
 					config.Client.Url = *clientURL
-				} else if connectionType == "host" {
+				case "host":
 					port := cCtx.Int("port")
 					if port == 0 {
 						panic("port is required for host connection type")
@@ -229,7 +230,7 @@ func runCli() error {
 
 					config.Host.Port = port
 					config.Host.Endpoint = endpoint
-				} else {
+				default:
 					panic("Invalid connection type")
 				}
 

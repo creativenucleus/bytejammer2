@@ -79,7 +79,7 @@ func RunClient(chUserExitRequest <-chan bool, chKeyPress <-chan term.Key, socket
 	for {
 		select {
 		case data := <-chMakeSnapshot:
-			sendSnapshot(ticManager, kioskClientPath, data.DisplayName, wsConn)
+			sendSnapshot(ticManager, kioskClientPath, data.PlayerName, data.EffectName, wsConn)
 
 		case <-chNewPlayer:
 			newPlayer(ticManager, kioskStarterCode)
@@ -90,8 +90,14 @@ func RunClient(chUserExitRequest <-chan bool, chKeyPress <-chan term.Key, socket
 	}
 }
 
-func sendSnapshot(ticManager *tic.TicManager, kioskClientPath string, displayName string, wsConn *websocket.WebSocketConnection) error {
-	log.GlobalLog.Log("info", fmt.Sprintf("Sending TIC Snapshot %s", displayName))
+func sendSnapshot(
+	ticManager *tic.TicManager,
+	kioskClientPath string,
+	playerName string,
+	effectName string,
+	wsConn *websocket.WebSocketConnection,
+) error {
+	log.GlobalLog.Log("info", fmt.Sprintf("Sending TIC Snapshot %s (%s)", playerName, effectName))
 	state, err := ticManager.GetState()
 	if err != nil {
 		return err
@@ -99,18 +105,26 @@ func sendSnapshot(ticManager *tic.TicManager, kioskClientPath string, displayNam
 
 	// Save a local snapshot for safety...
 	timeNow := time.Now()
-	fname := fmt.Sprintf("%s-%s.lua", timeNow.Format("20060102150405"), files.SanitiseFilename(displayName))
-	fpath := fmt.Sprintf("%s/%s", kioskClientPath, fname)
-	fmt.Printf("Sving: %s", fpath)
+	fnameBase := fmt.Sprintf("%s-%s-%s", timeNow.Format("20060102150405"), files.SanitiseFilename(playerName), files.SanitiseFilename(effectName))
+	fpathLua := fmt.Sprintf("%s/%s.lua", kioskClientPath, fnameBase)
+	fpathMetaJson := fmt.Sprintf("%s/%s.meta.json", kioskClientPath, fnameBase)
 
-	err = os.WriteFile(fpath, state.Code, 0644)
+	fmt.Printf("Saving: %s", fpathLua)
+	err = os.WriteFile(fpathLua, state.Code, 0644)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Saving: %s", fpathMetaJson)
+	err = files.SaveMetaJson(fpathMetaJson, playerName, effectName)
 	if err != nil {
 		return err
 	}
 
 	data, err := json.Marshal(tic.MsgTicSnapshotData{
-		DisplayName: displayName,
-		Code:        state.Code,
+		PlayerName: playerName,
+		EffectName: effectName,
+		Code:       state.Code,
 	})
 	if err != nil {
 		return err

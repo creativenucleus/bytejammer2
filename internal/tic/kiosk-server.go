@@ -34,10 +34,12 @@ func (ks *KioskServer) MsgHandler(msgType message.MsgType, msgData []byte) error
 
 		timeNow := time.Now()
 
-		fname := fmt.Sprintf("%s-%s.lua", timeNow.Format("20060102150405"), files.SanitiseFilename(snapshotData.DisplayName))
-		fpath := fmt.Sprintf("%s/%s", ks.directory, fname)
+		fnameBase := fmt.Sprintf("%s-%s-%s", timeNow.Format("20060102150405"), files.SanitiseFilename(snapshotData.PlayerName), files.SanitiseFilename(snapshotData.EffectName))
+		fpathLua := fmt.Sprintf("%s/%s.lua", ks.directory, fnameBase)
+		fpathMetaJson := fmt.Sprintf("%s/%s.meta.json", ks.directory, fnameBase)
+
 		// TODO: Check for breakout
-		cleanPath, err := filepath.Abs(fpath)
+		cleanPath, err := filepath.Abs(fpathLua)
 		if err != nil {
 			return err
 		}
@@ -47,7 +49,12 @@ func (ks *KioskServer) MsgHandler(msgType message.MsgType, msgData []byte) error
 			return err
 		}
 
-		log.GlobalLog.Log("info", fmt.Sprintf("Received and saved TIC Snapshot to kiosk directory: %s", fname))
+		err = files.SaveMetaJson(fpathMetaJson, snapshotData.PlayerName, snapshotData.EffectName)
+		if err != nil {
+			return err
+		}
+
+		log.GlobalLog.Log("info", fmt.Sprintf("Received and saved TIC Snapshot to kiosk directory: %s", fnameBase))
 	}
 
 	return nil

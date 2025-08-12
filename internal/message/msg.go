@@ -15,7 +15,8 @@ const MsgTypeTicSnapshot = MsgType("tic-snapshot")
 const MsgTypeKioskMakeSnapshot = MsgType("kiosk-make-snapshot")
 
 type MsgDataMakeSnapshot struct {
-	DisplayName string `json:"display_name"`
+	PlayerName string `json:"player_name"`
+	EffectName string `json:"effect_name"`
 }
 
 // A request from the kiosk to prep a new player

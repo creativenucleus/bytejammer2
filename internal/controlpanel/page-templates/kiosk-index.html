@@ -1,116 +1,173 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <title>ByteJammer</title>
+	<head>
+		<meta charset="utf-8">
+		<title>ByteJammer</title>
 
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="">
-        <meta name="author" content="jtruk/RiFT">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="description" content="">
+		<meta name="author" content="jtruk/RiFT">
 
-        <link href="/static/package/bootstrap-5.3.3-dist/css/bootstrap.min.css" rel="stylesheet">
-        <link rel="stylesheet" href="/static/style/default.css" />
-        <link rel="icon" type="image/x-icon" href="/static/media/favicon/favicon.ico">
-        <script src="/static/javascript/bytejammer.js"></script>
-    </head>
-    <body>
-        <div class="container">
-            <div id="header">
-                <h1>ByteWall!</h1>
-            </div>
+		<link href="/static/package/bootstrap-5.3.3-dist/css/bootstrap.min.css" rel="stylesheet">
+		<link rel="stylesheet" href="/static/style/default.css" />
+		<link rel="icon" type="image/x-icon" href="/static/media/favicon/favicon.ico">
+		<script src="/static/javascript/bytejammer.js"></script>
+	</head>
+	<body>
+		<div class="container">
+			<div id="header">
+				<h1>ByteWall!</h1>
+			</div>
 
-            <p>
-                <button class="action-button" onclick="return SendSnapshotToServer()">Save TIC Effect</button>
-                <button class="action-button" onclick="return StartNewPlayer()">New Player</button>
-            </p>
-            
-            <p>Websocket status: <span id="ws-local-status"></span></p>
+			<p>
+				<button class="action-button" onclick="return SendSnapshotToServer()">Save TIC Effect</button>
+				<button class="action-button" onclick="return ResetCode()">Reset</button>
+			</p>
+			
+			<p>Websocket status: <span id="ws-local-status"></span></p>
 
-            <textarea id="log" style="display: none"></textarea>
+			<textarea id="log" style="display: none"></textarea>
 
-            <button onclick="ToggleLog()">toggle log</button>
-        </div>
+			<button onclick="ToggleLog()">toggle log</button>
+		</div>
 
+		<dialog id="submitDialog">
+			<form id="submitForm">
+				<p>This will add your code to the Byte Wall! :)</p>
+				<p>Please enter your name / scene name<p>
+				<p>
+					<label for="playerName">Your Name:</label>
+					<input type="text" id="playerName" name="playerName" placeholder="l33tl4m3r" required maxlength="20">
+				</p>
 
-        <script src="/static/package/bootstrap-5.3.3-dist/js/bootstrap.bundle.min.js"></script>
-        <script>
-            const ws = new BjmrWebSocket()
+				<p>Please give your effect a name<p>
+				<p>
+					<label for="effectName">Effect Name:</label>
+					<input type="text" id="effectName" name="effectName" placeholder="whizzy thing" required maxlength="20">
+				</p>
+				<div>
+					<button id="cancelButton" type="reset">Cancel</button>
+					<button id="submitButton">Confirm</button>
+				</div>
+			</form>
+		</dialog>
 
-            window.onload = () => {
-                const conn = ws.open("ws://" + document.location.host + "/ws-kiosk");
-                if(!conn) {                    
-                    setWsLocalStatusText('error', "Your browser does not support WebSockets");
-                    // TODO: Bigger error?
-                } else {
-                    setWsLocalStatusText('ok', "Initialised");
+		<div>
+		<button id="updateDetails">Update details</button>
+		</div>
 
-                    conn.onerror = (error) => {
-                        addToLog("Local websocket connection error");
-                    }
+		<script src="/static/package/bootstrap-5.3.3-dist/js/bootstrap.bundle.min.js"></script>
+		<script>
+			const ws = new BjmrWebSocket()
+			const submitDialog = document.getElementById("submitDialog");
+			const submitButton = document.getElementById("submitButton");
+			const cancelButton = document.getElementById("cancelButton");
+			const playerNameInput = document.getElementById("playerName");
+			const effectNameInput = document.getElementById("effectName");
 
-                    conn.onopen = () => {
-                        addToLog("Connected to local");
-                        setWsLocalStatusText('ok', "Open")
-                    }
-                    
-                    conn.onclose = (event) => {
-                        addToLog("Disconnected from local");
-                        if (event.wasClean) {
-                            setWsLocalStatusText('ok', `Closed: Connection closed cleanly, code=${event.code} reason=${event.reason}`);
-                        } else {
-                            // e.g. server process killed or network down
-                            // event.code is usually 1006 in this case
-                            setWsLocalStatusText('error', 'Closed: Unexpected disconnect');
-                        }
-                    }
+			const notSubmittedAlert = () => {
+				alert("The effect was not submitted");
+			}
 
-                    conn.onmessage = (evt) => {
-                        const msg = JSON.parse(evt.data);
-                        switch(msg.type) {
-                            case "server-status":
-                                handleMsgServerStatus(msg.data);
-                                break;
+			cancelButton.addEventListener("click", () => {
+				submitDialog.close();
+				notSubmittedAlert();
+			});
 
-                            case "log":
-                                handleMsgLog(msg.log);
-                                break;
+			submitDialog.addEventListener("cancel", (event) => {
+				notSubmittedAlert();
+			});
 
-                            default:
-                                console.error(`Unhandled message type ${msg.type}`);
-                        }
-                    }
-                }
-            }
+			window.onload = () => {
+				const conn = ws.open("ws://" + document.location.host + "/ws-kiosk");
+				if(!conn) {                    
+					setWsLocalStatusText('error', "Your browser does not support WebSockets");
+					// TODO: Bigger error?
+				} else {
+					setWsLocalStatusText('ok', "Initialised");
 
-            const SendSnapshotToServer = () => {
-                let displayName = prompt("This will add your code to the Byte Wall! :)\n\nPlease enter your name / scene name:", "");
-                if (displayName != null) {
-                    displayName = displayName.trim();
-                }
+					conn.onerror = (error) => {
+						addToLog("Local websocket connection error");
+					}
 
-                if (displayName == null || displayName == "") {
-                    alert("No submission made. Please enter your name if you'd like to submit!")
-                    return false;
-                }
+					conn.onopen = () => {
+						addToLog("Connected to local");
+						setWsLocalStatusText('ok', "Open")
+					}
+					
+					conn.onclose = (event) => {
+						addToLog("Disconnected from local");
+						if (event.wasClean) {
+							setWsLocalStatusText('ok', `Closed: Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+						} else {
+							// e.g. server process killed or network down
+							// event.code is usually 1006 in this case
+							setWsLocalStatusText('error', 'Closed: Unexpected disconnect');
+						}
+					}
 
-                ws.sendMsg("kiosk-make-snapshot", {
-                    "display_name": displayName,
-                });
-                alert("Thank you for your submission!")
-                return false;
-            }
+					conn.onmessage = (evt) => {
+						const msg = JSON.parse(evt.data);
+						switch(msg.type) {
+							case "server-status":
+								handleMsgServerStatus(msg.data);
+								break;
 
-            const StartNewPlayer = () => {
-                if (window.confirm("This will erase your code. Did you take a snapshot of it?")) {
-                    ws.sendMsg("kiosk-new-player", {});
-                }
-                return false;
-            }
+							case "log":
+								handleMsgLog(msg.log);
+								break;
 
-            const ToggleLog = () => {
-                const log = document.getElementById("log");
-                log.style.display = log.style.display === "none" ? "block" : "none";
-            }
-        </script>
-    </body>
+							default:
+								console.error(`Unhandled message type ${msg.type}`);
+						}
+					}
+				}
+			}
+
+			const SendSnapshotToServer = () => {
+				submitDialog.showModal();
+			}
+
+			submitButton.addEventListener("click", (event) => {
+				event.preventDefault(); // Prevent form submission
+
+				let playerName = playerNameInput.value.trim();
+				let effectName = effectNameInput.value.trim();
+
+				if (playerName == "") {
+					alert("No submission made. Please enter your own name if you'd like to submit!")
+					return false;
+				}
+
+				if (effectName == "") {
+					alert("No submission made. Please enter your effect name if you'd like to submit!")
+					return false;
+				}
+
+				ws.sendMsg("kiosk-make-snapshot", {
+					"player_name": playerName,
+					"effect_name": effectName
+				});
+
+				alert("Thank you for your submission!")
+
+				submitForm.reset();
+				submitDialog.close();
+
+				return false;
+			})
+
+			const ResetCode = () => {
+				if (window.confirm("This will erase your code. Did you take a snapshot of it?")) {
+					ws.sendMsg("kiosk-new-player", {});
+				}
+				return false;
+			}
+
+			const ToggleLog = () => {
+				const log = document.getElementById("log");
+				log.style.display = log.style.display === "none" ? "block" : "none";
+			}
+		</script>
+	</body>
 </html>

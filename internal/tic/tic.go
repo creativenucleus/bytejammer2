@@ -28,8 +28,9 @@ func NewMessageTicState(state State) (*message.Msg, error) {
 }
 
 type MsgTicSnapshotData struct {
-	DisplayName string
-	Code        []byte
+	PlayerName string
+	EffectName string
+	Code       []byte
 }
 
 // TicManager is a struct that represents a TIC-80 instance
