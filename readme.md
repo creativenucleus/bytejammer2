@@ -10,6 +10,7 @@ For celebration of the TIC-80 livecoding / effects scene.
 
 - A jukebox / robot VJ that plays TIC-80 effects for personal enjoyment.
 - A standalone client-server for running ByteJams.
+- A client and server for running the ByteWall.
 
 Please read the documentation before running.
 
@@ -60,12 +61,45 @@ Please note: Some functionality requires a [custom version of the Bytebattle bui
 
 Put `attractmode.lua` in the `_bytejammer-data/kiosk-server-playlist` folder (you might have to run once for that folder to be created).
 
-```cli
-.\bytejammer2.exe kiosk-server --connection host --port 8900 --endpoint /kiosk/listener --obs-overlay-port 4000
+The ByteWall requires a client (this is the on the machine your players will use to code) and a server (this is the machine that receives submissions and plays them as a jukebox). They could be running on the same machine.
 
-.\bytejammer2.exe kiosk-client --url ws://localhost:8900/kiosk/listener --startercodepath ./startercode.lua
+### Server
+
+```cli
+.\bytejammer2.exe kiosk-server
 ```
+
+#### Arguments
+
+##### --connection: host or client
+
+HOST - runs a websocket server - Supply port and endpoint:
+
+`--connection host --port 8900 --endpoint /kiosk/listener`
+
+CLIENT - uses another service to proxy the websockets - Supply the URL:
+
+`--connection client --url ws://drone.alkama.com:9000/bytejammer/someurl`
+
+##### --obs-overlay-port PORT
+
+`--obs-overlay-port 4000` will serve a webpage from `http://localhost:4000`. This webpage will continually update to show the player name and effect name for the effect currently playing on the jukebox TIC.
+
+### Client
+
+```cli
+.\bytejammer2.exe kiosk-client (arguments)
+```
+
 (this launches a webpanel available at http://localhost:9000, or at the port specified in the config.json)
+
+#### Arguments
+
+##### --url ws://localhost:8900/kiosk/listener
+
+The URL to attach to in order to communicate with the server.
+
+##### --startercodepath ./startercode.lua
 
 ## Goals
 
