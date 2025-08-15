@@ -49,7 +49,7 @@ func (ks *KioskServer) MsgHandler(msgType message.MsgType, msgData []byte) error
 			return err
 		}
 
-		err = files.SaveMetaJson(fpathMetaJson, files.SanitiseFilename(snapshotData.PlayerName), files.SanitiseFilename(snapshotData.EffectName))
+		err = files.SaveMetaJson(fpathMetaJson, snapshotData.PlayerName, snapshotData.EffectName)
 		if err != nil {
 			return err
 		}

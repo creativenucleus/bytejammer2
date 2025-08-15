@@ -66,14 +66,16 @@ The ByteWall requires a client (this is the on the machine your players will use
 ### Server
 
 ```cli
-.\bytejammer2.exe kiosk-server
+.\bytejammer2.exe kiosk-server (arguments)
 ```
 
 #### Arguments
 
 ##### --connection: host or client
 
-HOST - runs a websocket server - Supply port and endpoint:
+The server can run as a websocket hub (HOST mode) or you can use a third party intermediate to connect server and client (CLIENT mode).
+
+HOST - Runs an in-built websocket server - You need to supply `port` and `endpoint`:
 
 `--connection host --port 8900 --endpoint /kiosk/listener`
 
@@ -100,6 +102,16 @@ CLIENT - uses another service to proxy the websockets - Supply the URL:
 The URL to attach to in order to communicate with the server.
 
 ##### --startercodepath ./startercode.lua
+
+### Example
+
+A local ByteWall on one machine might be run by:
+
+```cli
+.\bytejammer2.exe kiosk-server --connection host --port 8900 --endpoint /kiosk/listener
+
+.\bytejammer2.exe kiosk-client --url ws://localhost:8900/kiosk/listener
+```
 
 ## Goals
 
