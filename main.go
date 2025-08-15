@@ -199,6 +199,10 @@ func runCli() error {
 					Name:  "endpoint",
 					Usage: "Endpoint to serve from (e.g. /mykiosk/server)",
 				},
+				&cli.IntFlag{
+					Name:  "obs-overlay-port",
+					Usage: "Set this if you'd like a web-based OBS overlay",
+				},
 			},
 			Action: func(cCtx *cli.Context) error {
 				connectionType := cCtx.String("connection")
@@ -233,6 +237,8 @@ func runCli() error {
 				default:
 					panic("Invalid connection type")
 				}
+
+				config.ObsOverlayPort = cCtx.Uint("obs-overlay-port")
 
 				return kiosk.RunServer(keyboard.ChUserExitRequest, config)
 			},

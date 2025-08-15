@@ -39,3 +39,17 @@ body {
 .action-button + .action-button {
     margin-left: 2em;
 }
+
+#obs-overlay {
+    font-size: 50pt;
+    color: #000000;
+    text-shadow: 0 0 2pt #fff;
+}
+
+#obs-overlay .authorName {
+    text-align: right;
+}
+
+#obs-overlay .effectName {
+    text-align: right;
+}

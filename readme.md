@@ -61,7 +61,7 @@ Please note: Some functionality requires a [custom version of the Bytebattle bui
 Put `attractmode.lua` in the `_bytejammer-data/kiosk-server-playlist` folder (you might have to run once for that folder to be created).
 
 ```cli
-.\bytejammer2.exe kiosk-server --connection host --port 8900 --endpoint /kiosk/listener
+.\bytejammer2.exe kiosk-server --connection host --port 8900 --endpoint /kiosk/listener --obs-overlay-port 4000
 
 .\bytejammer2.exe kiosk-client --url ws://localhost:8900/kiosk/listener --startercodepath ./startercode.lua
 ```

@@ -59,6 +59,7 @@ func (wss *WebSocketServer) socketHandler() func(http.ResponseWriter, *http.Requ
 
 		// #TODO: handle exit
 		for {
+			time.Sleep(time.Second)
 		}
 	}
 }

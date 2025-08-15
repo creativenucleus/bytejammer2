@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/creativenucleus/bytejammer2/config"
+	"github.com/creativenucleus/bytejammer2/internal/controlpanel"
 	"github.com/creativenucleus/bytejammer2/internal/files"
 	"github.com/creativenucleus/bytejammer2/internal/jukebox"
 	"github.com/creativenucleus/bytejammer2/internal/log"
@@ -24,6 +25,7 @@ type ServerConfig struct {
 		Port     int
 		Endpoint string // starts with /
 	}
+	ObsOverlayPort uint // optional, if set to non-zero, will run an OBS overlay
 }
 
 func RunServer(chUserExitRequest <-chan bool, c ServerConfig) error {
@@ -33,6 +35,16 @@ func RunServer(chUserExitRequest <-chan bool, c ServerConfig) error {
 			return err
 		}
 	*/
+
+	var obsOverlay *controlpanel.ObsOverlay
+	if c.ObsOverlayPort != 0 {
+		// #TODO: error handling?!
+		go func() error {
+			obsOverlay = controlpanel.NewObsOverlay(c.ObsOverlayPort)
+			return obsOverlay.Launch()
+		}()
+	}
+
 	kioskPath := filepath.Join(config.CONFIG.WorkDir, "kiosk-server-playlist")
 	kioskPath, err := filepath.Abs(kioskPath)
 	if err != nil {
@@ -88,6 +100,11 @@ func RunServer(chUserExitRequest <-chan bool, c ServerConfig) error {
 	chRestartJukebox := make(chan bool)
 	jukebox := jukebox.NewJukebox(playlist)
 	jukebox.AddReceiver(ticManager)
+
+	if obsOverlay != nil {
+		jukebox.SetObsOverlay(obsOverlay)
+	}
+
 	log.GlobalLog.Log("info", fmt.Sprintf("jukebox running from path: %s", kioskPath))
 	go func() {
 		jukebox.Run(chRestartJukebox)

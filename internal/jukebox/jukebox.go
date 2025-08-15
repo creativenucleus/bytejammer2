@@ -3,9 +3,12 @@ package jukebox
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/creativenucleus/bytejammer2/config"
+	"github.com/creativenucleus/bytejammer2/internal/controlpanel"
+	"github.com/creativenucleus/bytejammer2/internal/files"
 	"github.com/creativenucleus/bytejammer2/internal/log"
 	"github.com/creativenucleus/bytejammer2/internal/message"
 	"github.com/creativenucleus/bytejammer2/internal/playlist"
@@ -17,6 +20,7 @@ type Jukebox struct {
 	message.MsgPropagator
 	playlist      *playlist.Playlist
 	sceneDuration time.Duration
+	obsOverlay    *controlpanel.ObsOverlay // Optional OBS overlay
 }
 
 func NewJukebox(playlist *playlist.Playlist) *Jukebox {
@@ -25,6 +29,10 @@ func NewJukebox(playlist *playlist.Playlist) *Jukebox {
 		sceneDuration: time.Duration(uint(time.Second) * config.CONFIG.Jukebox.RotatePeriodInSeconds),
 	}
 	return l
+}
+
+func (j *Jukebox) SetObsOverlay(obsOverlay *controlpanel.ObsOverlay) {
+	j.obsOverlay = obsOverlay
 }
 
 func (j *Jukebox) SetSceneDuration(sceneDuration time.Duration) {
@@ -67,5 +75,28 @@ func (j *Jukebox) playNext() error {
 	}
 
 	j.Propagate(message.MsgTypeTicState, data)
+
+	// Try loading metadata for the item...
+	filePathMetaJson := fmt.Sprintf("%s.meta.json", item.Location())
+	metaJson, err := files.LoadMetaJson(filePathMetaJson)
+	playerName := ""
+	effectName := ""
+	if err != nil {
+		// Ignore 'file doesn't exist' error - it might legitimately not be there
+		if !os.IsNotExist(err) {
+			return err
+		}
+	} else {
+		playerName = metaJson["player_name"]
+		effectName = metaJson["effect_name"]
+	}
+
+	if j.obsOverlay != nil {
+		err = j.obsOverlay.SetDetail(playerName, effectName)
+		if err != nil {
+			log.GlobalLog.Log("error", fmt.Sprintf("Failed to set OBS overlay details: %v", err))
+		}
+	}
+
 	return nil
 }

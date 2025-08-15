@@ -25,6 +25,7 @@ type ReadHandler func(WebSocket, chan<- error)
 func NewWebSocketHandler(
 	readFn ReadHandler,
 	chError chan<- error,
+	chSend <-chan string,
 ) func(w http.ResponseWriter, r *http.Request) {
 	ws := WebSocket{}
 
@@ -37,6 +38,35 @@ func NewWebSocketHandler(
 		defer ws.Conn.Close()
 
 		// #TODO: handle exit
+
+		// Send
+		go func() {
+			for {
+				select {
+				case sendData := <-chSend:
+					messageObject := message.Msg{
+						Type:       "obs-overlay-html",
+						StringData: sendData,
+					}
+
+					jsonData, err := json.Marshal(&messageObject)
+					if err != nil {
+						chError <- fmt.Errorf("unmarshal error: %s", err)
+						return
+					}
+
+					err = ws.Conn.WriteMessage(websocket.TextMessage, jsonData)
+					if err != nil {
+						chError <- err
+						return
+					}
+				default:
+					continue
+				}
+			}
+		}()
+
+		// Receive
 		for {
 			readFn(ws, chError)
 		}
@@ -49,8 +79,8 @@ type MsgHandlerFn func(msgType message.MsgType, msgData []byte)
 func NewWebSocketMsgHandler(
 	msgHandlerFn MsgHandlerFn,
 	chError chan<- error,
+	chSend <-chan string,
 ) func(w http.ResponseWriter, r *http.Request) {
-
 	readerFn := func(ws WebSocket, chError chan<- error) {
 		messageType, msgData, err := ws.Conn.ReadMessage()
 		if err != nil {
@@ -73,7 +103,7 @@ func NewWebSocketMsgHandler(
 		msgHandlerFn(msgHeader.Type, msgData)
 	}
 
-	return NewWebSocketHandler(readerFn, chError)
+	return NewWebSocketHandler(readerFn, chError, chSend)
 }
 
 // #TODO: Make less brittle

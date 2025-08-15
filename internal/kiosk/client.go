@@ -107,7 +107,7 @@ func sendSnapshot(
 	timeNow := time.Now()
 	fnameBase := fmt.Sprintf("%s-%s-%s", timeNow.Format("20060102150405"), files.SanitiseFilename(playerName), files.SanitiseFilename(effectName))
 	fpathLua := fmt.Sprintf("%s/%s.lua", kioskClientPath, fnameBase)
-	fpathMetaJson := fmt.Sprintf("%s/%s.meta.json", kioskClientPath, fnameBase)
+	fpathMetaJson := fmt.Sprintf("%s.meta.json", fpathLua)
 
 	fmt.Printf("Saving: %s", fpathLua)
 	err = os.WriteFile(fpathLua, state.Code, 0644)

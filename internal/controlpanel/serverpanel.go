@@ -18,14 +18,13 @@ type ServerPanel struct {
 	ControlPanel
 }
 
-func NewServerPanel(
-	port uint,
-) *ServerPanel {
+func NewServerPanel(port uint) *ServerPanel {
 	sp := ServerPanel{
 		ControlPanel: *NewControlPanel(port, fmt.Sprintf("Go to http://localhost:%d/", port)),
 	}
 
 	chError := make(chan error)
+	chSend := make(chan string)
 
 	sp.router.HandleFunc("/", sp.serverPanelIndex)
 	sp.router.HandleFunc("/ws-server", websocket.NewWebSocketMsgHandler(func(msgType message.MsgType, msgData []byte) {
@@ -33,7 +32,7 @@ func NewServerPanel(
 		default:
 			fmt.Printf("Message not understood: %s\n", msgType)
 		}
-	}, chError))
+	}, chError, chSend))
 
 	return &sp
 }

@@ -36,7 +36,7 @@ func (ks *KioskServer) MsgHandler(msgType message.MsgType, msgData []byte) error
 
 		fnameBase := fmt.Sprintf("%s-%s-%s", timeNow.Format("20060102150405"), files.SanitiseFilename(snapshotData.PlayerName), files.SanitiseFilename(snapshotData.EffectName))
 		fpathLua := fmt.Sprintf("%s/%s.lua", ks.directory, fnameBase)
-		fpathMetaJson := fmt.Sprintf("%s/%s.meta.json", ks.directory, fnameBase)
+		fpathMetaJson := fmt.Sprintf("%s.meta.json", fpathLua)
 
 		// TODO: Check for breakout
 		cleanPath, err := filepath.Abs(fpathLua)
