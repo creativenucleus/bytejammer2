@@ -13,7 +13,7 @@
         <link rel="icon" type="image/x-icon" href="/static/media/favicon/favicon.ico">
         <script src="/static/javascript/bytejammer.js"></script>
     </head>
-    <body id="obs-overlay">
+    <body id="obs-overlay" class="code">
         <div class="container">
             <div id="updateable"></div>
         </div>
@@ -26,8 +26,16 @@
                 updateable.innerHTML = content;
             }
 
+			let LastUpdateTime = Date.now();
+			setInterval(() => {
+				const elOverlay = document.getElementById("obs-overlay");
+				const timeFade = Date.now() - LastUpdateTime;
+				const opacity = Math.max(0, Math.min(2 - timeFade*.0004));
+				elOverlay.style.opacity = opacity;
+			}, 1000/30);
+
 			window.onload = () => {
-				const conn = ws.open("ws://" + document.location.host + "/ws-obs-overlay");
+				const conn = ws.open("ws://" + document.location.host + "/ws-obs-overlay-code");
 				if(!conn) {                    
 					setWsLocalStatusText('error', "Your browser does not support WebSockets");
 					// TODO: Bigger error?
@@ -48,6 +56,15 @@
 						switch(msg.type) {
 							case "obs-overlay-html":
 								setUpdateableContent(msg.string_data);
+
+								const elCursors = document.getElementsByClassName("cursor");
+								if (elCursors.length > 0) {
+									elCursors[0].scrollIntoView({block: "center"});
+								}
+
+								if (msg.data.isEditorUpdated) {
+									LastUpdateTime = Date.now();
+								}
 								break;
 
 							default:

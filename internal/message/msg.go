@@ -28,9 +28,9 @@ type MsgHeader struct {
 }
 
 type Msg struct {
-	Type       MsgType `json:"type"`
-	Data       []byte  `json:"data"`
-	StringData string  `json:"string_data"`
+	Type       MsgType        `json:"type"`
+	Data       map[string]any `json:"data"`
+	StringData string         `json:"string_data"`
 }
 
 // MsgReceiver is the interface that a type must implement to receive messages

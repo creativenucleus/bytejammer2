@@ -19,9 +19,13 @@ type MsgTicStateData struct {
 }
 
 func NewMessageTicState(state State) (*message.Msg, error) {
-	data, err := json.Marshal(state)
-	if err != nil {
-		return nil, err
+	/*	data, err := json.Marshal(state)
+		if err != nil {
+			return nil, err
+		}
+	*/
+	data := map[string]any{
+		"state": state,
 	}
 
 	return &message.Msg{Type: "tic-state", Data: data}, nil

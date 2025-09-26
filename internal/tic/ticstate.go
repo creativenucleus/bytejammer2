@@ -2,9 +2,14 @@ package tic
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
+)
+
+var (
+	ErrInvalidData = errors.New("invalid data")
 )
 
 type State struct {
@@ -29,11 +34,22 @@ func MakeTicStateEditor(code []byte, cursorX int, cursorY int) State {
 	}
 }
 
+// Matches the pos command code
+//var regexTicData = regexp.MustCompile(`(?s)^-- pos: (\d+),(\d+)\n(.*)$`)
+
+var regexTicData = regexp.MustCompile(`(?s)^-- pos: (\d+),(\d+)\r?\n(.*)$`)
+
 func MakeTicStateFromExportData(data []byte) (*State, error) {
 	ts := State{}
 
-	r := regexp.MustCompile(`(?s)^-- pos: (\d+),(\d+)\n(.*)$`)
-	matches := r.FindStringSubmatch(string(data))
+	//	data = []byte("-- pos: 10,1\nfunction TIC()\n hello\n\thello\nend")
+
+	matches := regexTicData.FindStringSubmatch(string(data))
+	if matches == nil || len(matches) != 4 {
+		fmt.Printf("->%s<-\n", data)
+		fmt.Println(matches)
+		return nil, ErrInvalidData
+	}
 
 	ts.IsRunning = (matches[1] == "0") && (matches[2] == "0")
 	if !ts.IsRunning {
@@ -47,6 +63,7 @@ func MakeTicStateFromExportData(data []byte) (*State, error) {
 			return nil, err
 		}
 	}
+
 	ts.Code = []byte(matches[3])
 
 	return &ts, nil

@@ -36,11 +36,11 @@ func RunServer(chUserExitRequest <-chan bool, c ServerConfig) error {
 		}
 	*/
 
-	var obsOverlay *controlpanel.ObsOverlay
+	var obsOverlay *controlpanel.ObsOverlayKiosk
 	if c.ObsOverlayPort != 0 {
 		// #TODO: error handling?!
 		go func() error {
-			obsOverlay = controlpanel.NewObsOverlay(c.ObsOverlayPort)
+			obsOverlay = controlpanel.NewObsOverlayKiosk(c.ObsOverlayPort)
 			return obsOverlay.Launch()
 		}()
 	}

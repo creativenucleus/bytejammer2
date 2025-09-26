@@ -25,7 +25,7 @@ type ReadHandler func(WebSocket, chan<- error)
 func NewWebSocketHandler(
 	readFn ReadHandler,
 	chError chan<- error,
-	chSend <-chan string,
+	chSend <-chan message.Msg,
 ) func(w http.ResponseWriter, r *http.Request) {
 	ws := WebSocket{}
 
@@ -44,14 +44,9 @@ func NewWebSocketHandler(
 			for {
 				select {
 				case sendData := <-chSend:
-					messageObject := message.Msg{
-						Type:       "obs-overlay-html",
-						StringData: sendData,
-					}
-
-					jsonData, err := json.Marshal(&messageObject)
+					jsonData, err := json.Marshal(&sendData)
 					if err != nil {
-						chError <- fmt.Errorf("unmarshal error: %s", err)
+						chError <- fmt.Errorf("marshal error: %s", err)
 						return
 					}
 
@@ -73,16 +68,16 @@ func NewWebSocketHandler(
 	}
 }
 
-type MsgHandlerFn func(msgType message.MsgType, msgData []byte)
+type MsgHandlerFn func(msgType message.MsgType, msgRaw []byte)
 
 // Returns an HttpHandler that reads messages in our format from a websocket connection
 func NewWebSocketMsgHandler(
 	msgHandlerFn MsgHandlerFn,
 	chError chan<- error,
-	chSend <-chan string,
+	chSend <-chan message.Msg,
 ) func(w http.ResponseWriter, r *http.Request) {
 	readerFn := func(ws WebSocket, chError chan<- error) {
-		messageType, msgData, err := ws.Conn.ReadMessage()
+		messageType, msgRaw, err := ws.Conn.ReadMessage()
 		if err != nil {
 			chError <- err
 			return
@@ -93,23 +88,25 @@ func NewWebSocketMsgHandler(
 			return
 		}
 
+		// Unmarshal the header - if this fails we can't proceed
 		var msgHeader message.MsgHeader
-		err = json.Unmarshal(msgData, &msgHeader)
+		err = json.Unmarshal(msgRaw, &msgHeader)
 		if err != nil {
 			chError <- fmt.Errorf("header unmarshal: %s", err)
 			return
 		}
 
-		msgHandlerFn(msgHeader.Type, msgData)
+		msgHandlerFn(msgHeader.Type, msgRaw)
 	}
 
 	return NewWebSocketHandler(readerFn, chError, chSend)
 }
 
 // #TODO: Make less brittle
+// Listens to the incoming messages and propagates the,
 func propagateIncomingMessages(conn *websocket.Conn, propagate MsgHandlerFn) error {
 	for {
-		messageType, data, err := conn.ReadMessage()
+		socketMsgType, socketMsgData, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseAbnormalClosure) {
 				//				log.Println("Connection unexpectedly closed")
@@ -120,18 +117,18 @@ func propagateIncomingMessages(conn *websocket.Conn, propagate MsgHandlerFn) err
 			return err
 		}
 
-		if messageType != websocket.TextMessage {
+		if socketMsgType != websocket.TextMessage {
 			//			log.Println("messageType is not Text")
 			continue
 		}
 
 		var msg message.Msg
-		err = json.Unmarshal(data, &msg)
+		err = json.Unmarshal(socketMsgData, &msg)
 		if err != nil {
 			break
 		}
 
-		propagate(msg.Type, msg.Data)
+		propagate(msg.Type, socketMsgData)
 	}
 
 	return nil

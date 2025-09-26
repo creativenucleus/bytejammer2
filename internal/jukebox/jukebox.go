@@ -20,7 +20,7 @@ type Jukebox struct {
 	message.MsgPropagator
 	playlist      *playlist.Playlist
 	sceneDuration time.Duration
-	obsOverlay    *controlpanel.ObsOverlay // Optional OBS overlay
+	obsOverlay    *controlpanel.ObsOverlayKiosk // Optional OBS overlay
 }
 
 func NewJukebox(playlist *playlist.Playlist) *Jukebox {
@@ -31,7 +31,7 @@ func NewJukebox(playlist *playlist.Playlist) *Jukebox {
 	return l
 }
 
-func (j *Jukebox) SetObsOverlay(obsOverlay *controlpanel.ObsOverlay) {
+func (j *Jukebox) SetObsOverlay(obsOverlay *controlpanel.ObsOverlayKiosk) {
 	j.obsOverlay = obsOverlay
 }
 

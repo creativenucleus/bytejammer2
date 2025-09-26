@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/creativenucleus/bytejammer2/config"
+	bytejam_obs "github.com/creativenucleus/bytejammer2/internal/bytejam-obs"
 	"github.com/creativenucleus/bytejammer2/internal/controlpanel"
 	"github.com/creativenucleus/bytejammer2/internal/files"
 	"github.com/creativenucleus/bytejammer2/internal/jukebox"
@@ -89,6 +90,47 @@ func runCli() error {
 			Usage: "Starts a local jukebox of effects",
 			Action: func(*cli.Context) error {
 				return runJukebox(keyboard.ChUserExitRequest)
+			},
+		}, {
+			Name:  "bytejam-overlay",
+			Usage: "Starts a the overlay - for use with OBS (this is a bit hacky!)",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "sourcefile",
+					Usage:    "File to read (e.g. C:/Users/username/Documents/ticws-output.dat)",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:     "destfile",
+					Usage:    "File to output (e.g. C:/Users/username/Documents/MyFile.dat)",
+					Required: true,
+				},
+				&cli.UintFlag{
+					Name:     "port",
+					Usage:    "Port to display overlay (e.g. 9123 will provide http://localhost:9123)",
+					Required: true,
+				},
+			},
+			Action: func(cCtx *cli.Context) error {
+				sourceFilePath := cCtx.String("sourcefile")
+				if sourceFilePath == "" {
+					panic("sourcefile is required")
+				}
+
+				destFilePath := cCtx.String("destfile")
+				if destFilePath == "" {
+					panic("destfile is required")
+				}
+
+				port := cCtx.Uint("port")
+
+				config := bytejam_obs.ServerConfig{
+					ProxySourceFile: sourceFilePath,
+					ProxyDestFile:   destFilePath,
+					ObsOverlayPort:  port,
+				}
+
+				return bytejam_obs.Run(keyboard.ChUserExitRequest, config)
 			},
 		}, {
 			Name:  "client",

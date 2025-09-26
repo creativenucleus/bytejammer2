@@ -2,6 +2,7 @@ package log
 
 import (
 	"fmt"
+	"time"
 )
 
 type Log struct {
@@ -15,5 +16,6 @@ type MsgLogData struct {
 }
 
 func (l *Log) Log(level string, message string) {
-	fmt.Printf("LOG: %s %s\n", level, message)
+	now := time.Now()
+	fmt.Printf("LOG: (%s) %s\n", now.Format(time.RFC822), message)
 }

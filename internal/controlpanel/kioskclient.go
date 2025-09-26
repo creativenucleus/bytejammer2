@@ -29,31 +29,35 @@ func NewKioskClient(
 	}
 
 	chError := make(chan error)
-	chSend := make(chan string)
+	chSend := make(chan message.Msg)
 
 	kc.router.HandleFunc("/", kc.webKioskIndex)
 	kc.router.HandleFunc("/ws-kiosk",
-		websocket.NewWebSocketMsgHandler(func(msgType message.MsgType, msgData []byte) {
-			switch msgType {
-			case message.MsgTypeKioskMakeSnapshot:
-				body := struct {
-					Data message.MsgDataMakeSnapshot `json:"data"`
-				}{}
-				err := json.Unmarshal(msgData, &body)
-				if err != nil {
-					fmt.Printf("Error unmarshalling data: %s\n", err)
-					return
+		websocket.NewWebSocketMsgHandler(
+			func(msgType message.MsgType, msgRaw []byte) {
+				switch msgType {
+				case message.MsgTypeKioskMakeSnapshot:
+					body := struct {
+						Data message.MsgDataMakeSnapshot `json:"data"`
+					}{}
+					err := json.Unmarshal(msgRaw, &body)
+					if err != nil {
+						fmt.Printf("Error unmarshalling data: %s\n", err)
+						return
+					}
+
+					chMakeSnapshot <- body.Data
+
+				case message.MsgTypeKioskNewPlayer:
+					chNewPlayer <- true
+
+				default:
+					fmt.Printf("Message not understood: %s\n", msgType)
 				}
-
-				chMakeSnapshot <- body.Data
-
-			case message.MsgTypeKioskNewPlayer:
-				chNewPlayer <- true
-
-			default:
-				fmt.Printf("Message not understood: %s\n", msgType)
-			}
-		}, chError, chSend),
+			},
+			chError,
+			chSend,
+		),
 	)
 
 	return &kc

@@ -2,7 +2,6 @@ package kiosk
 
 import (
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -121,13 +120,20 @@ func sendSnapshot(
 		return err
 	}
 
-	data, err := json.Marshal(tic.MsgTicSnapshotData{
-		PlayerName: playerName,
-		EffectName: effectName,
-		Code:       state.Code,
-	})
-	if err != nil {
-		return err
+	/*
+		data, err := json.Marshal(tic.MsgTicSnapshotData{
+			PlayerName: playerName,
+			EffectName: effectName,
+			Code:       state.Code,
+		})
+		if err != nil {
+			return err
+		}
+	*/
+	data := map[string]any{
+		"playerName": playerName,
+		"effectName": effectName,
+		"code":       string(state.Code),
 	}
 
 	msg := message.Msg{

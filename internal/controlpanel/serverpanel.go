@@ -24,7 +24,7 @@ func NewServerPanel(port uint) *ServerPanel {
 	}
 
 	chError := make(chan error)
-	chSend := make(chan string)
+	chSend := make(chan message.Msg)
 
 	sp.router.HandleFunc("/", sp.serverPanelIndex)
 	sp.router.HandleFunc("/ws-server", websocket.NewWebSocketMsgHandler(func(msgType message.MsgType, msgData []byte) {
