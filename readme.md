@@ -62,7 +62,7 @@ Please note: Some functionality requires a [custom version of the Bytebattle bui
 (You'll need to have a json.config, but none of the specific values matter for this mode)
 
 This mode watches a decorated Lua file (*), reading changes, and does two things:
-- Writes a modified 'running' version for server TIC (with `--codeimport`) to ingest.
+- Writes a modified 'running' version for server TIC to ingest (the one with `--codeimport`).
 - Outputs an updating web page that displays the source code.
 
 (*) 'a decorated Lua file' refers to the data that we send over a web connection from client to server (i.e. a cursor/run-signal header followed by plain sourcecode).
@@ -75,37 +75,43 @@ It will take the following arguments:
 
 So will be invoked like:
 
-`bytejammer2.exe bytejam-overlay --sourcefile file-from-ticws.dat --destfile file-for-tic-codeimport.dat --port 8001`
+`bytejammer2.exe bytejam-overlay --sourcefile file-from-ticws.dat --destfile file-for-tic-codeimport.dat --port 8001 --playername JTRUK`
 
 If using ticws, You'll need to modify the setup to use this intermediate step.
 
-The things to run will look something like:
+Running it will look something like:
 
 #### Server
 
-(Starts a server, listening to a port, with an overlay - this connects to Alkama's server, so change the connection room/name so you don't clash with anyone else testing it. Also check your fft settings, etc, for live!)
+This connects to Alkama's server, so change the connection room/name so you don't clash with anyone else testing it. Also check your fft settings, etc, for live.
 
-```
+```cli
+# Start ticws, listening to a websocket and dumping the data to the file system
 .\ticws-server.exe bytejamobs yourname bytejamobs-ticws-output.dat
 
+# Start Bytejammer, watching that file, dumping a modified version to the file system and providing a web source at http://localhost:8001/
 .\bytejammer2.exe bytejam-overlay --sourcefile bytejamobs-ticws-output.dat --destfile bytejamobs-running.dat --playername JTRUK --port 8001
 
+# Run a TIC, watching the modified file
 .\tic80.exe --skip --codeimport=bytejamobs-running.dat --delay=5 --fft --fftcaptureplaybackdevices 
 ```
 
-#### Client (for testing locally)
-```
+#### Client (if you want to do local testing)
+
+```cli
+# Start a TIC, exporting the code to the file system
 .\tic80.exe --skip --codeexport=bytejamobs-ticws-client.dat --delay=5 --fft --fftcaptureplaybackdevices
 
+# Start ticws, watching that file, and sending it over a web socket
 .\ticws-client.exe bytejamobs yourname bytejamobs-ticws-client.dat
 ```
 
-You MUST open a browser listening to the PORT 8001 for all the flow to work!
+You MUST open a browser listening to the that PORT (8001 in the example) for all the flow to work!
 
 This build of ByteJammer has some quality-of-life issues, namely:
-- Sometimes it becomes unquittable (CTRL-C won't work), and needs to be hard closed with Task Manager / OS equivalent. For this reason, while we are beta testing it, I recommend **just running one player with source code** - if it misbehaves then it's easier to know which process to shut down!
-- The print log sometimes works; sometimes it doesn't track well.
-- There can only be one browser viewing of the source code website. The latest viewer will take control.
+- Sometimes it, or a TIC becomes unquittable (CTRL-C won't work), and needs to be hard closed with Task Manager / OS equivalent. For this reason, while we are beta testing it, I recommend **just running one player with source code** - if it misbehaves then it's easier to know which process to shut down!
+- The print log sometimes works; sometimes it doesn't track well, or spews whitespace.
+- There can only be one browser viewing of the source code served on any specific port. The latest viewer will take control.
 - If the client hasn't typed for a while (10 seconds), "Source file bytejamobs-ticws-output.dat is empty" will be raised, but that'll disappear when the client types again.
 
 ### OBS Studio Setup
