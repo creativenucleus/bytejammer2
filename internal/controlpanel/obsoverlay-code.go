@@ -61,11 +61,7 @@ func (cp *ObsOverlayCode) webIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *ObsOverlayCode) SetCode(state tic.State, playerName string, isEditorUpdated bool) error {
-	//playerName string, effectName string) error {
-	//playerName string, effectName string) error {
-	// Placeholder for the actual implementation of setting details in the OBS overlay.
-	// This function should update the overlay with the provided player name and effect name.
-	// TODO: sanitise
+	// TODO: sanitise code?
 	splitCode := strings.Split(strings.ReplaceAll(string(state.Code), "\r\n", "\n"), "\n")
 	if state.CursorY > 0 && state.CursorY <= len(splitCode) {
 		line := splitCode[state.CursorY-1]
@@ -90,11 +86,17 @@ func (o *ObsOverlayCode) SetCode(state tic.State, playerName string, isEditorUpd
 	}
 	rejoinedCode := strings.Join(splitCode, "\n")
 
+	// TODO: sanitise
+	playerNameHtml := ""
+	if playerName != "" {
+		playerNameHtml = fmt.Sprintf(`<div class="playerName">%s</div>`, playerName)
+	}
+
 	o.chSend <- message.Msg{
 		Type: "obs-overlay-html",
 		StringData: fmt.Sprintf(
-			`<div class="playerName">%s</div><div class="code">%s</div>`,
-			playerName,
+			`%s<div id="codeContainer"><div class="code inactive-fade">%s</div></div>`,
+			playerNameHtml,
 			rejoinedCode,
 		),
 		Data: map[string]any{

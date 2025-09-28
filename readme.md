@@ -57,6 +57,63 @@ Please note: Some functionality requires a [custom version of the Bytebattle bui
 }
 ```
 
+## Bytejam Overlay
+
+(You'll need to have a json.config, but none of the specific values matter for this mode)
+
+This mode watches a decorated Lua file (*), reading changes, and does two things:
+- Writes a modified 'running' version for server TIC (with `--codeimport`) to ingest.
+- Outputs an updating web page that displays the source code.
+
+(*) 'a decorated Lua file' refers to the data that we send over a web connection from client to server (i.e. a cursor/run-signal header followed by plain sourcecode).
+
+It will take the following arguments:
+- `--sourcefile` - (required) the file to watch
+- `--destfile` - (required) the file that the server TIC should import
+- `--port` - (required) the updating sourcecode will be sent to `http://localhost:PORT`
+- `--playername` - (optional) the playername for an overlay (might be handy for initial testing!)
+
+So will be invoked like:
+
+`bytejammer2.exe bytejam-overlay --sourcefile file-from-ticws.dat --destfile file-for-tic-codeimport.dat --port 8001`
+
+If using ticws, You'll need to modify the setup to use this intermediate step.
+
+The things to run will look something like:
+
+#### Server
+
+(Starts a server, listening to a port, with an overlay - this connects to Alkama's server, so change the connection room/name so you don't clash with anyone else testing it. Also check your fft settings, etc, for live!)
+
+```
+.\ticws-server.exe bytejamobs yourname bytejamobs-ticws-output.dat
+
+.\bytejammer2.exe bytejam-overlay --sourcefile bytejamobs-ticws-output.dat --destfile bytejamobs-running.dat --playername JTRUK --port 8001
+
+.\tic80.exe --skip --codeimport=bytejamobs-running.dat --delay=5 --fft --fftcaptureplaybackdevices 
+```
+
+#### Client (for testing locally)
+```
+.\tic80.exe --skip --codeexport=bytejamobs-ticws-client.dat --delay=5 --fft --fftcaptureplaybackdevices
+
+.\ticws-client.exe bytejamobs yourname bytejamobs-ticws-client.dat
+```
+
+You MUST open a browser listening to the PORT 8001 for all the flow to work!
+
+This build of ByteJammer has some quality-of-life issues, namely:
+- Sometimes it becomes unquittable (CTRL-C won't work), and needs to be hard closed with Task Manager / OS equivalent. For this reason, while we are beta testing it, I recommend **just running one player with source code** - if it misbehaves then it's easier to know which process to shut down!
+- The print log sometimes works; sometimes it doesn't track well.
+- There can only be one browser viewing of the source code website. The latest viewer will take control.
+- If the client hasn't typed for a while (10 seconds), "Source file bytejamobs-ticws-output.dat is empty" will be raised, but that'll disappear when the client types again.
+
+### OBS Studio Setup
+
+OBS Studio can be set with a 'Browser' Source. The URL should be set to watch the localhost with the provided port, e.g. `http://localhost:8001/`
+
+In the browser settings, you may need to hit the 'Refresh cache of current page' button if the source is not the current attached browser.
+
 ## Running a ByteWall
 
 Put `attractmode.lua` in the `_bytejammer-data/kiosk-server-playlist` folder (you might have to run once for that folder to be created).

@@ -9,7 +9,7 @@
         <meta name="author" content="jtruk/RiFT">
 
         <link href="/static/package/bootstrap-5.3.3-dist/css/bootstrap.min.css" rel="stylesheet">
-        <link rel="stylesheet" href="/static/style/default.css" />
+        <link rel="stylesheet" href="/static/style/obs-overlay-bytejam.css" />
         <link rel="icon" type="image/x-icon" href="/static/media/favicon/favicon.ico">
         <script src="/static/javascript/bytejammer.js"></script>
     </head>
@@ -17,22 +17,31 @@
         <div class="container">
             <div id="updateable"></div>
         </div>
+		<div id="stage">DDED</div>
 
 		<script>
 			const ws = new BjmrWebSocket()
-			const updateable = document.getElementById("updateable");
+			const elUpdateable = document.getElementById("updateable");
 
             const setUpdateableContent = (content) => {
-                updateable.innerHTML = content;
+                elUpdateable.innerHTML = content;
             }
 
 			let LastUpdateTime = Date.now();
+			let CodeOpacity = 1.0;
 			setInterval(() => {
-				const elOverlay = document.getElementById("obs-overlay");
 				const timeFade = Date.now() - LastUpdateTime;
-				const opacity = Math.max(0, Math.min(2 - timeFade*.0004));
-				elOverlay.style.opacity = opacity;
+				CodeOpacity = Math.max(0, Math.min(2 - timeFade*.0004));
+//				updateOverlayOpacity(document);
 			}, 1000/30);
+
+			const updateOverlayOpacity = (elAncestor) =>{
+				const elOverlays = elAncestor.getElementsByClassName("inactive-fade");
+				Array.from(elOverlays).forEach((elOverlay) => {
+					console.log("1")
+					elOverlay.style.opacity = CodeOpacity;
+				});
+			};
 
 			window.onload = () => {
 				const conn = ws.open("ws://" + document.location.host + "/ws-obs-overlay-code");
@@ -55,7 +64,14 @@
 						const msg = JSON.parse(evt.data);
 						switch(msg.type) {
 							case "obs-overlay-html":
-								setUpdateableContent(msg.string_data);
+								// Staged update to prevent blinking
+								const elTemplate = document.getElementById('stage');
+    							elTemplate.innerHTML = msg.string_data;
+								const elsToFade = elTemplate.getElementsByClassName("inactive-fade");
+								Array.from(elsToFade).forEach((elToFade) => {
+									elToFade.style.opacity = CodeOpacity;
+								});
+								elUpdateable.innerHTML = elTemplate.innerHTML;
 
 								const elCursors = document.getElementsByClassName("cursor");
 								if (elCursors.length > 0) {

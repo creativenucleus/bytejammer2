@@ -110,6 +110,10 @@ func runCli() error {
 					Usage:    "Port to display overlay (e.g. 9123 will provide http://localhost:9123)",
 					Required: true,
 				},
+				&cli.StringFlag{
+					Name:  "playername",
+					Usage: "The player name to display on the overlay",
+				},
 			},
 			Action: func(cCtx *cli.Context) error {
 				sourceFilePath := cCtx.String("sourcefile")
@@ -127,6 +131,7 @@ func runCli() error {
 				config := bytejam_obs.ServerConfig{
 					ProxySourceFile: sourceFilePath,
 					ProxyDestFile:   destFilePath,
+					PlayerName:      cCtx.String("playername"),
 					ObsOverlayPort:  port,
 				}
 

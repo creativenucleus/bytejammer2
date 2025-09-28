@@ -17,5 +17,5 @@ type MsgLogData struct {
 
 func (l *Log) Log(level string, message string) {
 	now := time.Now()
-	fmt.Printf("LOG: (%s) %s\n", now.Format(time.RFC822), message)
+	fmt.Printf("LOG: (%s) %s\n", now.Format(time.RFC3339), message)
 }

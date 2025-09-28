@@ -46,8 +46,6 @@ func MakeTicStateFromExportData(data []byte) (*State, error) {
 
 	matches := regexTicData.FindStringSubmatch(string(data))
 	if matches == nil || len(matches) != 4 {
-		fmt.Printf("->%s<-\n", data)
-		fmt.Println(matches)
 		return nil, ErrInvalidData
 	}
 

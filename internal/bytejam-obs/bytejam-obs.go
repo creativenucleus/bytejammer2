@@ -17,6 +17,7 @@ import (
 type ServerConfig struct {
 	ProxySourceFile string
 	ProxyDestFile   string
+	PlayerName      string
 	ObsOverlayPort  uint
 }
 
@@ -30,7 +31,7 @@ func Run(chUserExitRequest <-chan bool, conf ServerConfig) error {
 	}()
 
 	lastLogTime := time.Time{}
-	throttleDuration := 1 * time.Second
+	throttleDuration := 5 * time.Second
 	throttledLog := func(level string, message string) {
 		now := time.Now()
 		if now.Sub(lastLogTime) > throttleDuration {
@@ -48,13 +49,17 @@ func Run(chUserExitRequest <-chan bool, conf ServerConfig) error {
 	for {
 		select {
 		case <-ticker.C:
-			throttledLog("info", "Tick")
-
 			// Read the source file
 			fileData, err := os.ReadFile(conf.ProxySourceFile)
 			if err != nil {
 				// log but don't exit
 				throttledLog("error", fmt.Sprintf("Error reading source file %s: %s", conf.ProxySourceFile, err.Error()))
+				continue
+			}
+
+			if len(fileData) == 0 {
+				// log but don't exit
+				throttledLog("error", fmt.Sprintf("Source file %s is empty", conf.ProxySourceFile))
 				continue
 			}
 
@@ -91,7 +96,7 @@ func Run(chUserExitRequest <-chan bool, conf ServerConfig) error {
 			lastEditorCode = ticStateFromFile.Code
 
 			// Send code to OBS overlay
-			obsOverlay.SetCode(ticStateToOverlay, "jtruk", isEditorUpdated)
+			obsOverlay.SetCode(ticStateToOverlay, conf.PlayerName, isEditorUpdated)
 
 			if isRunningNewCode {
 				throttledLog("info", "new code!")
