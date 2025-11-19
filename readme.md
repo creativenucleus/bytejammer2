@@ -67,6 +67,25 @@ This mode watches a decorated Lua file (*), reading changes, and does two things
 
 (*) 'a decorated Lua file' refers to the data that we send over a web connection from client to server (i.e. a cursor/run-signal header followed by plain sourcecode).
 
+```mermaid
+flowchart LR
+    A([Proxy Server
+        e.g. Alkama's
+    ])
+    A --> |websocket| B[ticws]
+    B --> C{decorated Lua file}
+    C --> D[ByteJammer
+        bytejam-overlay]
+    D --> |when the CodeFile includes
+        the run signal then write|E{decorated Lua file}
+    E --> H[TIC-80]
+    D --> |Local Server for webpage|F[webpage
+        served on
+        http://localhost:port/]
+    D --> |websocket pushes code to the view|F
+    F --> G(OBS browser view)
+```
+
 It will take the following arguments:
 - `--sourcefile` - (required) the file to watch
 - `--destfile` - (required) the file that the server TIC should import
@@ -198,4 +217,5 @@ Decide whether to bundle executables (e.g. websocket-compliant versions of TIC),
 Reads a file every X seconds
 Broadcast a Message on Change  
 - FileProvider  
+
 An abstraction of a file system?
