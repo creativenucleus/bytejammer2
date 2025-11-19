@@ -73,16 +73,16 @@ flowchart LR
         e.g. Alkama's
     ])
     A --> |websocket| B[ticws]
-    B --> C{decorated Lua file}
-    C --> D[ByteJammer
+    B --> |write|C{decorated Lua file}
+    C --> |read by|D[ByteJammer
         bytejam-overlay]
     D --> |when the decorated Lua file includes the
         run signal then write|E{decorated Lua file}
-    E --> H[TIC-80]
+    E --> H[Modified TIC-80]
     D --> |Local Server for webpage|F[webpage
         served on
         http://localhost:port/]
-    D --> |websocket pushes code to the view|F
+    D --> |websocket updates the view with Lua code|F
     F --> G(OBS browser view)
 ```
 
@@ -219,4 +219,5 @@ Broadcast a Message on Change
 - FileProvider  
 
 An abstraction of a file system?
+
 
