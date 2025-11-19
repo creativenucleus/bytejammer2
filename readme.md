@@ -76,8 +76,8 @@ flowchart LR
     B --> C{decorated Lua file}
     C --> D[ByteJammer
         bytejam-overlay]
-    D --> |when the CodeFile includes
-        the run signal then write|E{decorated Lua file}
+    D --> |when the decorated Lua file includes the
+        run signal then write|E{decorated Lua file}
     E --> H[TIC-80]
     D --> |Local Server for webpage|F[webpage
         served on
@@ -219,3 +219,4 @@ Broadcast a Message on Change
 - FileProvider  
 
 An abstraction of a file system?
+
