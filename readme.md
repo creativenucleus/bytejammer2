@@ -73,11 +73,11 @@ flowchart LR
         e.g. Alkama's
     ])
     A --> |websocket| B[ticws]
-    B --> |write|C{decorated Lua file}
+    B --> |write|C{decorated Lua file 1}
     C --> |read by|D[ByteJammer
         bytejam-overlay]
     D --> |when the decorated Lua file includes the
-        run signal then write|E{decorated Lua file}
+        run signal then write|E{decorated Lua file 2}
     E --> H[Modified TIC-80]
     D --> |Local Server for webpage|F[webpage
         served on
@@ -219,5 +219,6 @@ Broadcast a Message on Change
 - FileProvider  
 
 An abstraction of a file system?
+
 
 
