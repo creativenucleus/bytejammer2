@@ -13,7 +13,7 @@ import (
 )
 
 //go:embed page-templates/server-panel-index.html
-var ServerPanelIndexHtml []byte
+var serverPanelIndexHtml []byte
 
 type ServerPanel struct {
 	basecontrolpanel.BaseControlPanel
@@ -43,7 +43,7 @@ func NewServerPanel(port uint) *ServerPanel {
 func (sp *ServerPanel) serverPanelIndex(w http.ResponseWriter, r *http.Request) {
 	env := stick.New(nil)
 
-	err := env.Execute(string(ServerPanelIndexHtml), w, map[string]stick.Value{"session_key": "session"})
+	err := env.Execute(string(serverPanelIndexHtml), w, map[string]stick.Value{"session_key": "session"})
 	if err != nil {
 		log.Println("write:", err)
 	}

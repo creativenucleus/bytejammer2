@@ -12,7 +12,7 @@ import (
 )
 
 //go:embed serve-static/*
-var WebStaticAssets embed.FS
+var webStaticAssets embed.FS
 
 type BaseControlPanel struct {
 	port   uint
@@ -32,7 +32,7 @@ func NewControlPanel(port uint, startedMessage string) *BaseControlPanel {
 }
 
 func (cp *BaseControlPanel) Launch() error {
-	subFs, err := fs.Sub(WebStaticAssets, "serve-static")
+	subFs, err := fs.Sub(webStaticAssets, "serve-static")
 	if err != nil {
 		return err
 	}

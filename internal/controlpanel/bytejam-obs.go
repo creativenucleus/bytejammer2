@@ -14,15 +14,12 @@ import (
 
 // should either have a client or a host set
 type ObsOverlayServerConfig struct {
-	ProxySourceFile string
-	ProxyDestFile   string
-	PlayerName      string
-	ObsOverlayPort  uint
+	ProxyDestFile  string
+	PlayerName     string
+	ObsOverlayPort uint
 }
 
-func ObsOverlayRun(chUserExitRequest <-chan bool, conf ObsOverlayServerConfig) error {
-	log.GlobalLog.Log("info", fmt.Sprintf("Starting a file proxy (source: %s) (dest: %s)", conf.ProxySourceFile, conf.ProxyDestFile))
-
+func ObsOverlayRun(chUserExitRequest <-chan bool, conf ObsOverlayServerConfig, chDataUpdate <-chan []byte) error {
 	var obsOverlay *ObsOverlayCode
 	go func() error {
 		obsOverlay = NewObsOverlayCode(conf.ObsOverlayPort)
@@ -39,26 +36,18 @@ func ObsOverlayRun(chUserExitRequest <-chan bool, conf ObsOverlayServerConfig) e
 		}
 	}
 
-	// Read the source file periodically
-	ticker := time.NewTicker(100 * time.Millisecond)
+	// Keep track of last known cursor position and code states
 	lastDisplayCursorX := int(1)
 	lastDisplayCursorY := int(1)
 	lastEditorCode := []byte{}
 	lastRunningCode := []byte{}
+
 	for {
 		select {
-		case <-ticker.C:
-			// Read the source file
-			fileData, err := os.ReadFile(conf.ProxySourceFile)
-			if err != nil {
-				// log but don't exit
-				throttledLog("error", fmt.Sprintf("Error reading source file %s: %s", conf.ProxySourceFile, err.Error()))
-				continue
-			}
-
+		case fileData := <-chDataUpdate:
 			if len(fileData) == 0 {
 				// log but don't exit
-				throttledLog("error", fmt.Sprintf("Source file %s is empty", conf.ProxySourceFile))
+				throttledLog("error", "Source data file is empty")
 				continue
 			}
 

@@ -11,11 +11,13 @@ import (
 	"github.com/creativenucleus/bytejammer2/config"
 	"github.com/creativenucleus/bytejammer2/internal/controlpanel"
 	"github.com/creativenucleus/bytejammer2/internal/files"
+	"github.com/creativenucleus/bytejammer2/internal/filewatcher"
 	"github.com/creativenucleus/bytejammer2/internal/jukebox"
 	"github.com/creativenucleus/bytejammer2/internal/keyboard"
 	"github.com/creativenucleus/bytejammer2/internal/kiosk"
 	"github.com/creativenucleus/bytejammer2/internal/log"
 	"github.com/creativenucleus/bytejammer2/internal/playlist"
+	"github.com/creativenucleus/bytejammer2/internal/studio"
 	"github.com/creativenucleus/bytejammer2/internal/tic"
 	"github.com/creativenucleus/bytejammer2/internal/websocket"
 	"github.com/urfave/cli/v2"
@@ -129,13 +131,15 @@ func runCli() error {
 				port := cCtx.Uint("port")
 
 				config := controlpanel.ObsOverlayServerConfig{
-					ProxySourceFile: sourceFilePath,
-					ProxyDestFile:   destFilePath,
-					PlayerName:      cCtx.String("playername"),
-					ObsOverlayPort:  port,
+					ProxyDestFile:  destFilePath,
+					PlayerName:     cCtx.String("playername"),
+					ObsOverlayPort: port,
 				}
 
-				return controlpanel.ObsOverlayRun(keyboard.ChUserExitRequest, config)
+				log.GlobalLog.Log("info", fmt.Sprintf("Starting a file proxy (source: %s) (dest: %s)", sourceFilePath, destFilePath))
+				chFileUpdated := filewatcher.NewFileWatcher(destFilePath, 100*time.Millisecond, keyboard.ChUserExitRequest)
+
+				return controlpanel.ObsOverlayRun(keyboard.ChUserExitRequest, config, chFileUpdated)
 			},
 		}, {
 			Name:  "client",
@@ -573,8 +577,8 @@ func runReplayer(chUserExitRequest <-chan bool, socketURL url.URL) error {
 func runStudio(chUserExitRequest <-chan bool, port uint) error {
 	// #TODO: error handling?!
 	go func() error {
-		cp := controlpanel.NewStudioPanel(chUserExitRequest, port)
-		return cp.Launch()
+		studio := studio.NewStudio(chUserExitRequest, port)
+		return studio.Launch()
 	}()
 
 	for {

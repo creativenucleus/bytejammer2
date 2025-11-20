@@ -23,12 +23,19 @@ type MsgDataMakeSnapshot struct {
 const MsgTypeKioskNewPlayer = MsgType("kiosk-new-player")
 
 // A request from the kiosk to make a snapshot
+const MsgTypeStudioServerStatus = MsgType("studio-server-status")
+
+//type MsgDataStudioStatus struct {
+//	RunningCount uint `json:"running_count"`
+//}
+
+// A request from the kiosk to make a snapshot
 const MsgTypeStudioStartTicWithOverlay = MsgType("start-tic-with-overlay")
 
 type MsgDataStartTicWithOverlay struct {
 	ListenToUrl string `json:"listenToUrl"`
 	FileStub    string `json:"fileStub"`
-	OverlayPort uint   `json:"overlayPort"`
+	OverlayPort uint   `json:"overlayPort,string"`
 	PlayerName  string `json:"playerName"`
 }
 

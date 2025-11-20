@@ -14,7 +14,7 @@ import (
 )
 
 //go:embed page-templates/kiosk-index.html
-var KioskIndexHtml []byte
+var kioskIndexHtml []byte
 
 type KioskClient struct {
 	basecontrolpanel.BaseControlPanel
@@ -69,7 +69,7 @@ func NewKioskClient(
 func (cp *KioskClient) webKioskIndex(w http.ResponseWriter, r *http.Request) {
 	env := stick.New(nil)
 
-	err := env.Execute(string(KioskIndexHtml), w, map[string]stick.Value{"session_key": "session"})
+	err := env.Execute(string(kioskIndexHtml), w, map[string]stick.Value{"session_key": "session"})
 	if err != nil {
 		log.Println("write:", err)
 	}
