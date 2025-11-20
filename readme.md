@@ -67,6 +67,31 @@ This mode watches a decorated Lua file (*), reading changes, and does two things
 
 (*) 'a decorated Lua file' refers to the data that we send over a web connection from client to server (i.e. a cursor/run-signal header followed by plain sourcecode).
 
+```mermaid
+flowchart LR
+    _PS[Proxy Server
+        e.g. Alkama's
+    ]
+    _PS --> |websocket| TWS[ticws]
+    TWS --> |write|DF1{decorated Lua file 1}
+    DF1 --> |read by|BJ([ByteJammer
+        bytejam-overlay])
+    subgraph "ByteJammer - ByteJam Overlay"
+    BJ --> |when the decorated Lua file includes the
+        run signal then write|DF2{decorated Lua file 2}
+    BJ --> WSO["overlay
+        (web server
+        given _port1_)"]
+    WSO --> |HTTP for web page|WSP["web page (overlay)
+        on
+        http://localhost:port1/
+        "]
+    WSO --> |websocket updates the view with Lua code|WSP
+    end
+    DF2 ---> TIC80[Modified TIC-80]
+    WSP --> OBS(OBS browser view)
+```
+
 It will take the following arguments:
 - `--sourcefile` - (required) the file to watch
 - `--destfile` - (required) the file that the server TIC should import
@@ -126,10 +151,74 @@ Put `attractmode.lua` in the `_bytejammer-data/kiosk-server-playlist` folder (yo
 
 The ByteWall requires a client (this is the on the machine your players will use to code) and a server (this is the machine that receives submissions and plays them as a jukebox). They could be running on the same machine.
 
-### Server
+### ByteWall Kiosk-Client
+
+```cli
+.\bytejammer2.exe kiosk-client (arguments)
+```
+
+(this launches a webpanel available at http://localhost:9000, or at the port specified in the config.json)
+
+```mermaid
+flowchart LR
+    subgraph ByteJammer - Kiosk Client
+    A([ByteJammer
+        kiosk-client])
+    A --> B["control panel
+        (web server
+        given _port1_)"]
+    B --> |HTTP for web page|X["web page (control panel)
+        on
+        http://localhost:port1/
+        "]
+    B <--> |websocket|X
+    end
+    X --> K[Web Browser]
+    A <----> |decorated Lua file|C[Modified TIC-80]
+    A ----> |websocket|E(ByteJammer kiosk-server)
+```
+
+#### Arguments
+
+##### --url ws://localhost:8900/kiosk/listener
+
+The URL to attach to in order to communicate with the server.
+
+##### --startercodepath ./startercode.lua
+
+### Bytewall Kiosk-Server
 
 ```cli
 .\bytejammer2.exe kiosk-server (arguments)
+```
+
+```mermaid
+flowchart LR
+    Z[ByteJammer kiosk-client]
+    Z --> A([ByteJammer
+        kiosk-server])
+    subgraph ByteJammer - Kiosk Server
+    A --> B["control panel
+        (web server
+        given _port1_)"]
+    B --> |HTTP for web page|X["web page (control panel)
+        on
+        http://localhost:port1/
+        "]
+    B --> |websocket|X
+    A <--> C{Jukebox function}
+    A .-> |optional|G["OBS overlay
+        (web server
+        given _port2_)"]
+    G --> |HTTP for web page|F["web page (overlay for OBS)
+        on
+        http://localhost:port2/
+        "]
+    G --> |websocket|F
+    end
+    C <---> |decorated Lua file|D[Modified TIC-80]
+    X --> E[Web Browser]
+    F --> H[OBS Browser View]
 ```
 
 #### Arguments
@@ -149,22 +238,6 @@ CLIENT - uses another service to proxy the websockets - Supply the URL:
 ##### --obs-overlay-port PORT
 
 `--obs-overlay-port 4000` will serve a webpage from `http://localhost:4000`. This webpage will continually update to show the player name and effect name for the effect currently playing on the jukebox TIC.
-
-### Client
-
-```cli
-.\bytejammer2.exe kiosk-client (arguments)
-```
-
-(this launches a webpanel available at http://localhost:9000, or at the port specified in the config.json)
-
-#### Arguments
-
-##### --url ws://localhost:8900/kiosk/listener
-
-The URL to attach to in order to communicate with the server.
-
-##### --startercodepath ./startercode.lua
 
 ### Example
 
