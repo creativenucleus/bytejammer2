@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -8,7 +9,6 @@ import (
 	"time"
 
 	"github.com/creativenucleus/bytejammer2/config"
-	bytejam_obs "github.com/creativenucleus/bytejammer2/internal/bytejam-obs"
 	"github.com/creativenucleus/bytejammer2/internal/controlpanel"
 	"github.com/creativenucleus/bytejammer2/internal/files"
 	"github.com/creativenucleus/bytejammer2/internal/jukebox"
@@ -128,14 +128,14 @@ func runCli() error {
 
 				port := cCtx.Uint("port")
 
-				config := bytejam_obs.ServerConfig{
+				config := controlpanel.ObsOverlayServerConfig{
 					ProxySourceFile: sourceFilePath,
 					ProxyDestFile:   destFilePath,
 					PlayerName:      cCtx.String("playername"),
 					ObsOverlayPort:  port,
 				}
 
-				return bytejam_obs.Run(keyboard.ChUserExitRequest, config)
+				return controlpanel.ObsOverlayRun(keyboard.ChUserExitRequest, config)
 			},
 		}, {
 			Name:  "client",
@@ -288,6 +288,25 @@ func runCli() error {
 				config.ObsOverlayPort = cCtx.Uint("obs-overlay-port")
 
 				return kiosk.RunServer(keyboard.ChUserExitRequest, config)
+			},
+		}, {
+			// Experimental
+			Name:  "studio",
+			Usage: "Starts a control panel for the studio - currently just for managing ByteJam server/overlays",
+			Flags: []cli.Flag{
+				&cli.UintFlag{
+					Name:  "port",
+					Usage: "A port to serve from (e.g. 9123)",
+				},
+			},
+			Action: func(cCtx *cli.Context) error {
+				port := cCtx.Uint("port")
+				// TODO check port is non-zero
+				if port == 0 {
+					return errors.New("port is required")
+				}
+
+				return runStudio(keyboard.ChUserExitRequest, port)
 			},
 		}},
 	}
@@ -549,4 +568,21 @@ func runReplayer(chUserExitRequest <-chan bool, socketURL url.URL) error {
 			}
 		}*/
 	return nil
+}
+
+func runStudio(chUserExitRequest <-chan bool, port uint) error {
+	// #TODO: error handling?!
+	go func() error {
+		cp := controlpanel.NewStudioPanel(chUserExitRequest, port)
+		return cp.Launch()
+	}()
+
+	for {
+		select {
+		case <-chUserExitRequest:
+			return nil
+		default:
+			time.Sleep(1 * time.Second)
+		}
+	}
 }

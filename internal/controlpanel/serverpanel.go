@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/creativenucleus/bytejammer2/internal/basecontrolpanel"
 	"github.com/creativenucleus/bytejammer2/internal/message"
 	"github.com/creativenucleus/bytejammer2/internal/websocket"
 	"github.com/tyler-sommer/stick"
@@ -15,19 +16,21 @@ import (
 var ServerPanelIndexHtml []byte
 
 type ServerPanel struct {
-	ControlPanel
+	basecontrolpanel.BaseControlPanel
 }
 
 func NewServerPanel(port uint) *ServerPanel {
 	sp := ServerPanel{
-		ControlPanel: *NewControlPanel(port, fmt.Sprintf("Go to http://localhost:%d/", port)),
+		BaseControlPanel: *basecontrolpanel.NewControlPanel(port, fmt.Sprintf("Go to http://localhost:%d/", port)),
 	}
 
 	chError := make(chan error)
 	chSend := make(chan message.Msg)
 
-	sp.router.HandleFunc("/", sp.serverPanelIndex)
-	sp.router.HandleFunc("/ws-server", websocket.NewWebSocketMsgHandler(func(msgType message.MsgType, msgData []byte) {
+	router := sp.Router()
+
+	router.HandleFunc("/", sp.serverPanelIndex)
+	router.HandleFunc("/ws-server", websocket.NewWebSocketMsgHandler(func(msgType message.MsgType, msgData []byte) {
 		switch msgType {
 		default:
 			fmt.Printf("Message not understood: %s\n", msgType)

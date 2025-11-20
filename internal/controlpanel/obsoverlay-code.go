@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/creativenucleus/bytejammer2/internal/basecontrolpanel"
 	"github.com/creativenucleus/bytejammer2/internal/message"
 	"github.com/creativenucleus/bytejammer2/internal/tic"
 	"github.com/creativenucleus/bytejammer2/internal/websocket"
@@ -17,7 +18,7 @@ import (
 var obsOverlayCodeIndexHtml []byte
 
 type ObsOverlayCode struct {
-	ControlPanel
+	basecontrolpanel.BaseControlPanel
 	chSend chan message.Msg
 }
 
@@ -27,14 +28,16 @@ func NewObsOverlayCode(
 	//	chNewPlayer chan<- bool,
 ) *ObsOverlayCode {
 	panel := ObsOverlayCode{
-		ControlPanel: *NewControlPanel(port, fmt.Sprintf("Go to http://localhost:%d/", port)),
+		BaseControlPanel: *basecontrolpanel.NewControlPanel(port, fmt.Sprintf("Go to http://localhost:%d/", port)),
 	}
 
 	chError := make(chan error)
 	panel.chSend = make(chan message.Msg)
 
-	panel.router.HandleFunc("/", panel.webIndex)
-	panel.router.HandleFunc("/ws-obs-overlay-code",
+	router := panel.Router()
+
+	router.HandleFunc("/", panel.webIndex)
+	router.HandleFunc("/ws-obs-overlay-code",
 		websocket.NewWebSocketMsgHandler(
 			func(msgType message.MsgType, msgRaw []byte) {
 				switch msgType {

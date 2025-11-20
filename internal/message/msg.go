@@ -22,6 +22,16 @@ type MsgDataMakeSnapshot struct {
 // A request from the kiosk to prep a new player
 const MsgTypeKioskNewPlayer = MsgType("kiosk-new-player")
 
+// A request from the kiosk to make a snapshot
+const MsgTypeStudioStartTicWithOverlay = MsgType("start-tic-with-overlay")
+
+type MsgDataStartTicWithOverlay struct {
+	ListenToUrl string `json:"listenToUrl"`
+	FileStub    string `json:"fileStub"`
+	OverlayPort uint   `json:"overlayPort"`
+	PlayerName  string `json:"playerName"`
+}
+
 // Msg is the base struct for representing some information that is passed around
 type MsgHeader struct {
 	Type MsgType

@@ -199,3 +199,7 @@ Reads a file every X seconds
 Broadcast a Message on Change  
 - FileProvider  
 An abstraction of a file system?
+
+## TODO
+
+Template for all HTML panels.

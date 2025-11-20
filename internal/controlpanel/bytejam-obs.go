@@ -1,4 +1,4 @@
-package bytejam_obs
+package controlpanel
 
 // Watches a file (potentially deposited by Ticws) and splits into an OBS overlay, and a file for TIC to watch
 
@@ -8,25 +8,24 @@ import (
 	"os"
 	"time"
 
-	"github.com/creativenucleus/bytejammer2/internal/controlpanel"
 	"github.com/creativenucleus/bytejammer2/internal/log"
 	"github.com/creativenucleus/bytejammer2/internal/tic"
 )
 
 // should either have a client or a host set
-type ServerConfig struct {
+type ObsOverlayServerConfig struct {
 	ProxySourceFile string
 	ProxyDestFile   string
 	PlayerName      string
 	ObsOverlayPort  uint
 }
 
-func Run(chUserExitRequest <-chan bool, conf ServerConfig) error {
+func ObsOverlayRun(chUserExitRequest <-chan bool, conf ObsOverlayServerConfig) error {
 	log.GlobalLog.Log("info", fmt.Sprintf("Starting a file proxy (source: %s) (dest: %s)", conf.ProxySourceFile, conf.ProxyDestFile))
 
-	var obsOverlay *controlpanel.ObsOverlayCode
+	var obsOverlay *ObsOverlayCode
 	go func() error {
-		obsOverlay = controlpanel.NewObsOverlayCode(conf.ObsOverlayPort)
+		obsOverlay = NewObsOverlayCode(conf.ObsOverlayPort)
 		return obsOverlay.Launch()
 	}()
 

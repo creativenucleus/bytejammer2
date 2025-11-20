@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/creativenucleus/bytejammer2/internal/basecontrolpanel"
 	"github.com/creativenucleus/bytejammer2/internal/message"
 	"github.com/creativenucleus/bytejammer2/internal/websocket"
 	"github.com/tyler-sommer/stick"
@@ -15,7 +16,7 @@ import (
 var obsOverlayKioskIndexHtml []byte
 
 type ObsOverlayKiosk struct {
-	ControlPanel
+	basecontrolpanel.BaseControlPanel
 	chSend chan message.Msg
 }
 
@@ -25,14 +26,16 @@ func NewObsOverlayKiosk(
 	//	chNewPlayer chan<- bool,
 ) *ObsOverlayKiosk {
 	panel := ObsOverlayKiosk{
-		ControlPanel: *NewControlPanel(port, fmt.Sprintf("Go to http://localhost:%d/", port)),
+		BaseControlPanel: *basecontrolpanel.NewControlPanel(port, fmt.Sprintf("Go to http://localhost:%d/", port)),
 	}
 
 	chError := make(chan error)
 	panel.chSend = make(chan message.Msg)
 
-	panel.router.HandleFunc("/", panel.webIndex)
-	panel.router.HandleFunc("/ws-obs-overlay-kiosk",
+	router := panel.Router()
+
+	router.HandleFunc("/", panel.webIndex)
+	router.HandleFunc("/ws-obs-overlay-kiosk",
 		websocket.NewWebSocketMsgHandler(func(msgType message.MsgType, msgData []byte) {
 			switch msgType {
 

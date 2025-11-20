@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>ByteJammer</title>
+
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="description" content="">
+		<meta name="author" content="jtruk/RiFT">
+
+		<link href="/static/package/bootstrap-5.3.8-dist/css/bootstrap.min.css" rel="stylesheet">
+		<link rel="stylesheet" href="/static/style/default.css" />
+		<link rel="icon" type="image/x-icon" href="/static/media/favicon/favicon.ico">
+		<script src="/static/javascript/bytejammer.js"></script>
+	</head>
+	<body>
+		<nav class="navbar navbar-expand-md navbar-dark fixed-top" id="bj-navbar">
+			<div class="container" role="container">
+				<span>ByteJammer Studio</span>
+				<span class="text-end">
+					Connection to bytejammer.exe: <span id="ws-local-status"></span>
+				</span>
+			</div>
+		</nav>
+
+		<main class="container" role="container">
+			<div id="header">
+				<h1>Studio Panel</h1>
+			</div>
+
+			<div>
+				<div class="card">
+					<div class="card-header">
+						<h2 class="card-title">Action - Launch TIC-80 with OBS Code Overlay</h2>
+					</div>
+
+					<div class="card-body">
+						<form id="form-launch-tic-with-overlay">
+							<div class="row mb-3">
+								<label for="listen-to-url" class="col-sm-2 col-form-label">Websocket URL</label>
+								<div class="col-sm-10">
+									<input type="url" class="form-control" id="listen-to-url" aria-describedby="help-listen-url">
+									<div id="help-listen-url" class="form-text">e.g. ws://drone.alkama.com:9000/bytejammer/testuser</div>
+								</div>
+							</div> 
+							<div class="row mb-3">
+								<label for="overlay-port" class="col-sm-2 col-form-label">Port</label>
+								<div class="col-sm-10">
+									<input type="text" class="form-control" id="overlay-port" inputmode="numeric" pattern="\d*" placeholder="8123" aria-describedby="help-overlay-port">
+									<div id="help-overlay-port" class="form-text">e.g. 8192</div>
+								</div>
+							</div>
+							<div class="row mb-3">
+								<label for="file-stub" class="col-sm-2 col-form-label">File Stub</label>
+								<div class="col-sm-10">
+									<input type="text" class="form-control" id="file-stub" aria-describedby="help-file-stub">
+									<div id="help-file-stub" class="form-text">e.g. jtruk-code-for-tic.dat</div>
+								</div>
+							</div> 
+							<div class="row mb-3">
+								<label for="player-name" class="col-sm-2 col-form-label">Player Name</label>
+								<div class="col-sm-10">
+									<input type="text" class="form-control" id="player-name" placeholder="8123" aria-describedby="help-player-name">
+									<div id="help-player-name" class="form-text">e.g. jtruk</div>
+								</div>
+							</div>
+							<button class="action-button">Launch</button>
+						</form>
+					</div>
+				</div>
+			</div>
+		
+			<textarea id="log" style="display: none"></textarea>
+			<button onclick="ToggleLog()">toggle log</button>
+		</div>
+
+
+		<script src="/static/package/bootstrap-5.3.8-dist/js/bootstrap.bundle.min.js"></script>
+		<script>
+			const ws = new BjmrWebSocket()
+
+			window.onload = () => {
+				const conn = ws.open("ws://" + document.location.host + "/ws");
+				if(!conn) {                    
+					setWsLocalStatusText('error', "Your browser does not support WebSockets");
+					// TODO: Bigger error?
+				} else {
+					setWsLocalStatusText('ok', "Initialised");
+
+					conn.onerror = (error) => {
+						addToLog("Local websocket connection error");
+					}
+
+					conn.onopen = () => {
+						addToLog("Connected to local");
+						setWsLocalStatusText('ok', "Open")
+					}
+					
+					conn.onclose = (event) => {
+						addToLog("Disconnected from local");
+						if (event.wasClean) {
+							setWsLocalStatusText('ok', `Closed: Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+						} else {
+							// e.g. server process killed or network down
+							// event.code is usually 1006 in this case
+							setWsLocalStatusText('error', 'Closed: Unexpected disconnect');
+						}
+					}
+
+					conn.onmessage = (evt) => {
+						const msg = JSON.parse(evt.data);
+						switch(msg.type) {
+							case "server-status":
+								handleMsgServerStatus(msg.data);
+								break;
+
+							case "log":
+								handleMsgLog(msg.log);
+								break;
+
+							default:
+								console.error(`Unhandled message type ${msg.type}`);
+						}
+					}
+				}
+			}
+
+			const ToggleLog = () => {
+				const log = document.getElementById("log");
+				log.style.display = log.style.display === "none" ? "block" : "none";
+			}
+
+			// TODO: error handling
+			const serverPost = async(action, data) => {
+				const url = 'http://' + document.location.host + "/action/" + action + '.json';
+
+				const response = await fetch(url, {
+					method: 'POST',
+					headers: {
+						'Accept': 'application/json',
+						'Content-Type': 'application/json'
+					},
+					body: {
+						Data: JSON.stringify(data)
+					},
+				});
+
+				return response.json();
+			}
+
+			const form = document.getElementById("form-launch-tic-with-overlay");
+			form.addEventListener("submit", (event) => {
+				event.preventDefault();
+
+				const listenToUrl = document.getElementById("listen-to-url").value
+				const overlayPort = document.getElementById("overlay-port").value
+				const fileStub = document.getElementById("file-stub").value
+				const playerName = document.getElementById("player-name").value
+				if(!listenToUrl || !overlayPort || !fileStub || !playerName){
+					alert("Please fill in all fields");
+					return false;
+				}
+
+				(async () => {
+					const result = await serverPost('launch-tic-with-overlay', {
+						listenToUrl: listenToUrl,
+						overlayPort: overlayPort,
+						fileStub: fileStub,
+						playerName: playerName
+					});
+				})();
+			});
+		</script>
+	</body>
+</html>
