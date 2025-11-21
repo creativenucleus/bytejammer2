@@ -1,6 +1,8 @@
 module github.com/creativenucleus/bytejammer2
 
-go 1.22.1
+go 1.23.0
+
+toolchain go1.24.4
 
 require (
 	github.com/gorilla/mux v1.8.1
@@ -10,7 +12,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tyler-sommer/stick v1.0.6
 	github.com/urfave/cli/v2 v2.27.3
-	golang.org/x/net v0.27.0
+	golang.org/x/net v0.38.0
 )
 
 require (
