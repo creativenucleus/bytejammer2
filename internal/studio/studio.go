@@ -83,19 +83,14 @@ func NewStudio(
 			return
 		}
 
-		socketWatcher, err := studio.addTicSocketWatcher(body.ListenToUrl, body.PlayerName)
+		_, err = studio.addTicSocketWatcher(body.ListenToUrl, body.PlayerName)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, `{"error":"could not add TIC socket watcher: %s"}`, err)
 			return
 		}
 
-		logMessage := fmt.Sprintf("Started TIC socket watcher for player '%s' listening to '%s' (file at %s) with (overlay on %s)",
-			body.PlayerName,
-			body.ListenToUrl,
-			socketWatcher.filePath,
-			socketWatcher.overlayURL,
-		)
+		logMessage := fmt.Sprintf("Started TIC socket watcher for player '%s'", body.PlayerName)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(
@@ -200,11 +195,28 @@ func (s *Studio) addTicSocketWatcher(listenToURL string, playerName string) (*ti
 
 // sendServerStatus sends the current server status to all connected websocket clients
 func (s *Studio) sendServerStatus() {
+	type statusOverlay struct {
+		PlayerName  string `json:"playerName"`
+		ListenToURL string `json:"listenToURL"`
+		OverlayURL  string `json:"overlayURL"`
+		FilePath    string `json:"filePath"`
+	}
+
+	var overlays []statusOverlay
+	for _, watcher := range s.ticSocketWatchers {
+		overlays = append(overlays, statusOverlay{
+			PlayerName:  watcher.playerName,
+			ListenToURL: watcher.listenToURL,
+			OverlayURL:  watcher.overlayURL,
+			FilePath:    watcher.filePath,
+		})
+	}
+
 	// Send Status via websocket
 	s.chWSSend <- message.Msg{
 		Type: message.MsgTypeStudioServerStatus,
 		Data: map[string]any{
-			"socket_watchers": s.ticSocketWatchers,
+			"overlays": overlays,
 		},
 	}
 }

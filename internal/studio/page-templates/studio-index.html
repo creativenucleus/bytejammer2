@@ -28,36 +28,54 @@
 				<h1>Studio Panel</h1>
 			</div>
 
-			<div>
-				<div class="card">
-					<div class="card-header">
-						<h2 class="card-title">Action - Launch TIC-80 with OBS Code Overlay</h2>
-					</div>
+			<div class="card">
+				<div class="card-header">
+					<h2 class="card-title">Action - Launch TIC-80 with OBS Code Overlay</h2>
+				</div>
 
-					<div class="card-body">
-						<form id="form-launch-tic-with-overlay">
-							<div class="row mb-3">
-								<label for="listen-to-url" class="col-sm-2 col-form-label">Websocket URL</label>
-								<div class="col-sm-10">
-									<input type="url" class="form-control" id="listen-to-url" aria-describedby="help-listen-url" value="ws://drone.alkama.com:9000/bytejammer/testuser">
-									<div id="help-listen-url" class="form-text">e.g. ws://drone.alkama.com:9000/bytejammer/testuser</div>
-								</div>
-							</div> 
-							<div class="row mb-3">
-								<label for="player-name" class="col-sm-2 col-form-label">Player Name</label>
-								<div class="col-sm-10">
-									<input type="text" class="form-control" id="player-name" aria-describedby="help-player-name" value="jtruk">
-									<div id="help-player-name" class="form-text">e.g. jtruk (spaces and non-alphanumeric characters will be removed)</div>
-								</div>
+				<div class="card-body">
+					<form id="form-launch-tic-with-overlay">
+						<div class="row mb-3">
+							<label for="listen-to-url" class="col-sm-2 col-form-label">Websocket URL</label>
+							<div class="col-sm-10">
+								<input type="url" class="form-control" id="listen-to-url" aria-describedby="help-listen-url">
+								<div id="help-listen-url" class="form-text">e.g. ws://drone.alkama.com:9000/bytejammer/testuser</div>
 							</div>
-							<button class="action-button">Launch</button>
-						</form>
-					</div>
+						</div> 
+						<div class="row mb-3">
+							<label for="player-name" class="col-sm-2 col-form-label">Player Name</label>
+							<div class="col-sm-10">
+								<input type="text" class="form-control" id="player-name" aria-describedby="help-player-name">
+								<div id="help-player-name" class="form-text">e.g. jtruk (spaces and non-alphanumeric characters will be removed to make a URL)</div>
+							</div>
+						</div>
+						<div class="row mb-3">
+							<div class="col-sm-10 offset-sm-2">
+								<button class="btn btn-primary">Launch</button>
+							</div>
+						</div>
+					</form>
+
+					<table class="table table-sm table-striped table-hover align-middle">
+						<thead>
+							<tr>
+								<th scope="col">Player</th>
+								<th scope="col">Listen To URL</th>
+								<th scope="col">Overlay URL</th>
+								<th scope="col">File path for TIC</th>
+								<th scope="col">#</th>
+							</tr>
+						</thead>
+						<tbody class="table-group-divider" id="table-overlays-body">
+						</tbody>
+					</table>
 				</div>
 			</div>
 		
-			<textarea id="log" style="display: none"></textarea>
-			<button onclick="ToggleLog()">toggle log</button>
+			<div class="card mt-2">
+				<textarea id="log" style="display: none"></textarea>
+				<button onclick="ToggleLog()">toggle log</button>
+			</div>
 
 			<!-- Toast -->
 			<div class="toast-container position-fixed bottom-0 end-0 p-3">
@@ -76,6 +94,8 @@
 			const ws = new BjmrWebSocket()
 
 			window.onload = () => {
+				updateServerStatus(null);
+
 				const conn = ws.open("ws://" + document.location.host + "/ws/studio");
 				if(!conn) {                    
 					setWsLocalStatusText('error', "Your browser does not support WebSockets");
@@ -175,8 +195,7 @@
 			});
 
 			const handleMsgServerStatus = (data) => {
-				console.log(data)
-				alert("Studio server status: running = " + data);
+				updateServerStatus(data);
 			}
 
 			const showToast = (severity, title, message) => {
@@ -197,6 +216,31 @@
 				document.getElementById('toast-body').innerText = message;
 
 				bsToast.show()
+			}
+
+			const updateServerStatus = (serverStatus) => {
+				const elTableBody = document.getElementById('table-overlays-body')
+
+				let innerHtml = "";
+				if(!serverStatus || !serverStatus.overlays || !serverStatus.overlays.length) {
+					innerHtml += `
+						<tr>
+							<td colspan="5" class="text-center">- (None Running) -</td>
+						</tr>`;
+				} else {
+					serverStatus.overlays.forEach(overlay => {
+						innerHtml += `
+						<tr>
+							<td>${overlay.playerName}</td>
+							<td>${overlay.listenToURL}</td>
+							<td>${overlay.overlayURL}</td>
+							<td>${overlay.filePath}</td>
+							<td><button class="btn btn-danger">Stop</button></td>
+						</tr>`;
+					});
+				}
+
+				elTableBody.innerHTML = innerHtml;
 			}
 		</script>
 	</body>
