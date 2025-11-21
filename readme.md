@@ -59,7 +59,9 @@ Please note: Some functionality requires a [custom version of the Bytebattle bui
 
 ## Bytejam Overlay
 
-(You'll need to have a json.config, but none of the specific values matter for this mode)
+This feature is managed by starting in `studio` mode.
+
+You'll need to have a json.config (but so far only `work_dir` matters)
 
 This mode watches a decorated Lua file (*), reading changes, and does two things:
 - Writes a modified 'running' version for server TIC to ingest (the one with `--codeimport`).
@@ -69,27 +71,32 @@ This mode watches a decorated Lua file (*), reading changes, and does two things
 
 ```mermaid
 flowchart LR
-    _PS[Proxy Server
+    _PS1[Proxy Server
         e.g. Alkama's
     ]
-    _PS --> |websocket| TWS[ticws]
-    TWS --> |write|DF1{decorated Lua file 1}
-    DF1 --> |read by|BJ([ByteJammer
-        bytejam-overlay])
-    subgraph "ByteJammer - ByteJam Overlay"
-    BJ --> |when the decorated Lua file includes the
+    _PS1 --> |websocket| BJ
+    _PS2[Proxy Server
+        e.g. Alkama's
+    ]
+    _PS2 .-> |websocket| BJ
+    _PS3[Proxy Server
+        e.g. Alkama's
+    ]
+    _PS3 .-> |websocket| BJ
+    subgraph "ByteJam Overlay mode"
+    BJ <---> BJCP("admin panel
+        (on localhost:_port_)")
+    BJ(["ByteJammer
+        **studio**"]) --> BJMO
+    BJMO((ByteJam Overlay mode)) --> |when the decorated Lua file includes the
         run signal then write|DF2{decorated Lua file 2}
-    BJ --> WSO["overlay
-        (web server
-        given _port1_)"]
-    WSO --> |HTTP for web page|WSP["web page (overlay)
-        on
-        http://localhost:port1/
-        "]
-    WSO --> |websocket updates the view with Lua code|WSP
+    BJMO --> |HTTP for web page|WSP["overlay web view
+        on a provided /url/route"]
+    BJMO --> |websocket updates the view with Lua code|WSP
     end
-    DF2 ---> TIC80[Modified TIC-80]
-    WSP --> OBS(OBS browser view)
+    DF2 --> TIC80[Modified TIC-80]
+    WSP --> OBS[OBS browser view]
+    BJCP <--> WB[Web Browser]
 ```
 
 It will take the following arguments:
@@ -276,3 +283,4 @@ An abstraction of a file system?
 ## TODO
 
 Template for all HTML panels.
+
