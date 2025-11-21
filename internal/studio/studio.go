@@ -24,15 +24,16 @@ import (
 var studioIndexHtml []byte
 
 type ticSocketWatcher struct {
-	listenToURL string
-	playerName  string
-	slug        string
-	filePath    string
-	overlayURL  string
+	listenToURL    string
+	playerName     string
+	slug           string
+	filePath       string
+	overlayURLPath string
 }
 
 type Studio struct {
 	server            *webserver.Webserver
+	hostPart          string
 	ticSocketWatchers []ticSocketWatcher
 	// Channel to listen for user exit requests
 	chUserExitRequest <-chan bool
@@ -46,7 +47,9 @@ func NewStudio(
 	chUserExitRequest <-chan bool,
 	port uint,
 ) *Studio {
-	logMessage := fmt.Sprintf("Starting Studio control panel on http://localhost:%d", port)
+	hostPart := fmt.Sprintf("http://localhost:%d", port)
+
+	logMessage := fmt.Sprintf("Starting Studio control panel on %s", hostPart)
 	server, err := webserver.NewWebserver(port, logMessage)
 	if err != nil {
 		log.Fatalf("Could not create webserver: %s", err)
@@ -54,6 +57,7 @@ func NewStudio(
 
 	studio := Studio{}
 	studio.server = server
+	studio.hostPart = hostPart
 	studio.chUserExitRequest = chUserExitRequest
 	studio.chError = make(chan error)
 	studio.chWSSend = make(chan message.Msg)
@@ -180,11 +184,11 @@ func (s *Studio) addTicSocketWatcher(listenToURL string, playerName string) (*ti
 	}()
 
 	socketWatcher := ticSocketWatcher{
-		listenToURL: listenToURL,
-		playerName:  playerName,
-		slug:        slug,
-		filePath:    filePath,
-		overlayURL:  overlayURLPath,
+		listenToURL:    listenToURL,
+		playerName:     playerName,
+		slug:           slug,
+		filePath:       filePath,
+		overlayURLPath: overlayURLPath,
 	}
 
 	// Fake for now
@@ -196,19 +200,24 @@ func (s *Studio) addTicSocketWatcher(listenToURL string, playerName string) (*ti
 // sendServerStatus sends the current server status to all connected websocket clients
 func (s *Studio) sendServerStatus() {
 	type statusOverlay struct {
-		PlayerName  string `json:"playerName"`
-		ListenToURL string `json:"listenToURL"`
-		OverlayURL  string `json:"overlayURL"`
-		FilePath    string `json:"filePath"`
+		PlayerName     string `json:"playerName"`
+		ListenToURL    string `json:"listenToURL"`
+		OverlayURL     string `json:"overlayURL"`
+		OverlayURLPath string `json:"overlayURLPath"`
+		FilePath       string `json:"filePath"`
 	}
 
 	var overlays []statusOverlay
 	for _, watcher := range s.ticSocketWatchers {
+		// TODO: raise error
+		fullFilePath, _ := filepath.Abs(watcher.filePath)
+
 		overlays = append(overlays, statusOverlay{
-			PlayerName:  watcher.playerName,
-			ListenToURL: watcher.listenToURL,
-			OverlayURL:  watcher.overlayURL,
-			FilePath:    watcher.filePath,
+			PlayerName:     watcher.playerName,
+			ListenToURL:    watcher.listenToURL,
+			OverlayURL:     s.hostPart + watcher.overlayURLPath,
+			OverlayURLPath: watcher.overlayURLPath,
+			FilePath:       fullFilePath,
 		})
 	}
 

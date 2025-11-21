@@ -19,15 +19,12 @@
 				<span>ByteJammer Studio</span>
 				<span class="text-end">
 					Connection to bytejammer.exe: <span id="ws-local-status"></span>
+					<button class="d-none" id="action-reconnect">Reconnect</button>
 				</span>
 			</div>
 		</nav>
 
 		<main class="container" role="container">
-			<div id="header">
-				<h1>Studio Panel</h1>
-			</div>
-
 			<div class="card">
 				<div class="card-header">
 					<h2 class="card-title">Action - Launch TIC-80 with OBS Code Overlay</h2>
@@ -96,12 +93,21 @@
 			window.onload = () => {
 				updateServerStatus(null);
 
+				connectToServer();
+			}
+
+			const ToggleLog = () => {
+				const log = document.getElementById("log");
+				log.style.display = log.style.display === "none" ? "block" : "none";
+			}
+
+			const connectToServer = () => {
 				const conn = ws.open("ws://" + document.location.host + "/ws/studio");
 				if(!conn) {                    
 					setWsLocalStatusText('error', "Your browser does not support WebSockets");
 					// TODO: Bigger error?
 				} else {
-					setWsLocalStatusText('ok', "Initialised");
+					setWsLocalStatusText('info', "Initialising...");
 
 					conn.onerror = (error) => {
 						addToLog("Local websocket connection error");
@@ -109,17 +115,18 @@
 
 					conn.onopen = () => {
 						addToLog("Connected to local");
-						setWsLocalStatusText('ok', "Open")
+						setWsLocalStatusText('success', "Open")
 					}
 					
 					conn.onclose = (event) => {
 						addToLog("Disconnected from local");
 						if (event.wasClean) {
-							setWsLocalStatusText('ok', `Closed: Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+							setWsLocalStatusText('info', `Closed: Connection closed cleanly, code=${event.code} reason=${event.reason}`);
 						} else {
 							// e.g. server process killed or network down
 							// event.code is usually 1006 in this case
 							setWsLocalStatusText('error', 'Closed: Unexpected disconnect');
+							elButtonReconnect.classList.remove("d-none");
 						}
 					}
 
@@ -139,11 +146,6 @@
 						}
 					}
 				}
-			}
-
-			const ToggleLog = () => {
-				const log = document.getElementById("log");
-				log.style.display = log.style.display === "none" ? "block" : "none";
 			}
 
 			// TODO: error handling
@@ -169,6 +171,12 @@
 				});
 			}
 
+			elButtonReconnect = document.getElementById("action-reconnect");
+			elButtonReconnect.addEventListener("click", (event) => {
+				elButtonReconnect.classList.add("d-none");
+				connectToServer();
+			});
+
 			const form = document.getElementById("form-launch-tic-with-overlay");
 			form.addEventListener("submit", (event) => {
 				event.preventDefault();
@@ -187,7 +195,7 @@
 						playerName: playerName
 					}).then((result) => {
 						form.reset();
-						showToast('ok', fnTitle, result.message);
+						showToast('success', fnTitle, result.message);
 					}).catch((error) => {
 						showToast('error', fnTitle, error.message);
 					});
@@ -204,7 +212,7 @@
 
 				elToast.classList.remove("bg-danger", "bg-success");
 				switch(severity) {
-					case 'ok':
+					case 'success':
 						elToast.classList.add("bg-success");
 						break;
 					case 'error':
@@ -233,7 +241,7 @@
 						<tr>
 							<td>${overlay.playerName}</td>
 							<td>${overlay.listenToURL}</td>
-							<td>${overlay.overlayURL}</td>
+							<td><a href="${overlay.overlayURL}" target="_blank">${overlay.overlayURLPath}</a></td>
 							<td>${overlay.filePath}</td>
 							<td><button class="btn btn-danger">Stop</button></td>
 						</tr>`;

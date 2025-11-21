@@ -1,27 +1,23 @@
-// severity: ok, error
+// severity: ok, info, error
 const setWsLocalStatusText = (severity, text) => {   
     const elText = document.getElementById("ws-local-status")
     elText.innerHTML = text;
 
     const elHeader = document.getElementById("bj-navbar")
     if (elHeader) {
-        elHeader.classList.remove("bg-danger", "bg-success");
+        elHeader.classList.remove("bg-success", "bg-info", "bg-danger");
         switch(severity) {
-            case 'ok':
+            case 'success':
                 elHeader.classList.add("bg-success");
+                break;
+            case 'info':
+                elHeader.classList.add("bg-info");
                 break;
             case 'error':
                 elHeader.classList.add("bg-danger");
                 break;
         }
     }
-}
-
-// severity: ok, error
-const setWsRemoteStatusText = (severity, text) => {
-    const el = document.getElementById("ws-remote-status")
-    el.innerHTML = text;
-    el.className = severity == 'ok' ? 'text-success' : 'text-danger';
 }
 
 const getDataFromForm = (elForm) => {
