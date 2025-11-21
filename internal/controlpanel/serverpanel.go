@@ -30,12 +30,19 @@ func NewServerPanel(port uint) *ServerPanel {
 	router := sp.Router()
 
 	router.HandleFunc("/", sp.serverPanelIndex)
-	router.HandleFunc("/ws-server", websocket.NewWebSocketMsgHandler(func(msgType message.MsgType, msgData []byte) {
-		switch msgType {
-		default:
-			fmt.Printf("Message not understood: %s\n", msgType)
-		}
-	}, chError, chSend))
+	router.HandleFunc("/ws-server",
+		websocket.NewWebSocketMsgHandler(
+			func(msgType message.MsgType, msgData []byte) {
+				switch msgType {
+				default:
+					fmt.Printf("Message not understood: %s\n", msgType)
+				}
+			},
+			chError,
+			chSend,
+			nil,
+		),
+	)
 
 	return &sp
 }

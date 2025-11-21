@@ -60,6 +60,7 @@ func NewKioskClient(
 			},
 			chError,
 			chSend,
+			nil,
 		),
 	)
 

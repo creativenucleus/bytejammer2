@@ -63,6 +63,7 @@ func NewCodeOverlayPanel(
 			},
 			chError,
 			panel.chSendCode,
+			nil,
 		),
 	)
 

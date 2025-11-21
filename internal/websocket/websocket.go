@@ -22,10 +22,12 @@ type WebSocket struct {
 type ReadHandler func(WebSocket, chan<- error)
 
 // Returns an HttpHandler that reads from a websocket connection
+// fnOnConnOpen is an optional function that is called when the connection is opened
 func NewWebSocketHandler(
 	readFn ReadHandler,
 	chError chan<- error,
 	chSend <-chan message.Msg,
+	fnOnConnOpen *func(),
 ) func(w http.ResponseWriter, r *http.Request) {
 	ws := WebSocket{}
 
@@ -61,6 +63,10 @@ func NewWebSocketHandler(
 			}
 		}()
 
+		if fnOnConnOpen != nil {
+			(*fnOnConnOpen)()
+		}
+
 		// Receive
 		for {
 			readFn(ws, chError)
@@ -75,6 +81,7 @@ func NewWebSocketMsgHandler(
 	msgHandlerFn MsgHandlerFn,
 	chError chan<- error,
 	chSend <-chan message.Msg,
+	fnOnConnOpen *func(),
 ) func(w http.ResponseWriter, r *http.Request) {
 	readerFn := func(ws WebSocket, chError chan<- error) {
 		messageType, msgRaw, err := ws.Conn.ReadMessage()
@@ -99,7 +106,7 @@ func NewWebSocketMsgHandler(
 		msgHandlerFn(msgHeader.Type, msgRaw)
 	}
 
-	return NewWebSocketHandler(readerFn, chError, chSend)
+	return NewWebSocketHandler(readerFn, chError, chSend, fnOnConnOpen)
 }
 
 // #TODO: Make less brittle

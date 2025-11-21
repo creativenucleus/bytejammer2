@@ -110,6 +110,10 @@ func NewStudio(
 		studio.sendServerStatus()
 	}).Methods("POST")
 
+	onConnOpen := func() {
+		studio.sendServerStatus()
+	}
+
 	router.HandleFunc("/ws/studio",
 		websocket.NewWebSocketMsgHandler(
 			func(msgType message.MsgType, msgRaw []byte) {
@@ -120,6 +124,7 @@ func NewStudio(
 			},
 			studio.chError,
 			studio.chWSSend,
+			&onConnOpen,
 		),
 	)
 

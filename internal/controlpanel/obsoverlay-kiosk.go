@@ -36,13 +36,18 @@ func NewObsOverlayKiosk(
 
 	router.HandleFunc("/", panel.webIndex)
 	router.HandleFunc("/ws-obs-overlay-kiosk",
-		websocket.NewWebSocketMsgHandler(func(msgType message.MsgType, msgData []byte) {
-			switch msgType {
+		websocket.NewWebSocketMsgHandler(
+			func(msgType message.MsgType, msgData []byte) {
+				switch msgType {
 
-			default:
-				fmt.Printf("Message not understood: %s\n", msgType)
-			}
-		}, chError, panel.chSend),
+				default:
+					fmt.Printf("Message not understood: %s\n", msgType)
+				}
+			},
+			chError,
+			panel.chSend,
+			nil,
+		),
 	)
 
 	return &panel
