@@ -59,7 +59,9 @@ Please note: Some functionality requires a [custom version of the Bytebattle bui
 
 ## Bytejam Overlay
 
-(You'll need to have a json.config, but none of the specific values matter for this mode)
+This feature is managed by starting in `studio` mode.
+
+You'll need to have a json.config (but so far only `work_dir` matters)
 
 This mode watches a decorated Lua file (*), reading changes, and does two things:
 - Writes a modified 'running' version for server TIC to ingest (the one with `--codeimport`).
@@ -69,53 +71,57 @@ This mode watches a decorated Lua file (*), reading changes, and does two things
 
 ```mermaid
 flowchart LR
-    _PS[Proxy Server
+    _PS1[Proxy Server
         e.g. Alkama's
     ]
-    _PS --> |websocket| TWS[ticws]
-    TWS --> |write|DF1{decorated Lua file 1}
-    DF1 --> |read by|BJ([ByteJammer
-        bytejam-overlay])
-    subgraph "ByteJammer - ByteJam Overlay"
-    BJ --> |when the decorated Lua file includes the
+    _PS1 --> |websocket| BJ
+    _PS2[Proxy Server
+        e.g. Alkama's
+    ]
+    _PS2 .-> |websocket| BJ
+    _PS3[Proxy Server
+        e.g. Alkama's
+    ]
+    _PS3 .-> |websocket| BJ
+    subgraph "ByteJam Overlay mode"
+    BJ <---> BJCP("admin panel
+        (on localhost:_port_)")
+    BJ(["ByteJammer
+        **studio**"]) --> BJMO1
+    BJMO1((ByteJam Overlay)) --> |when the decorated Lua file includes the
         run signal then write|DF2{decorated Lua file 2}
-    BJ --> WSO["overlay
-        (web server
-        given _port1_)"]
-    WSO --> |HTTP for web page|WSP["web page (overlay)
-        on
-        http://localhost:port1/
-        "]
-    WSO --> |websocket updates the view with Lua code|WSP
+    BJMO1 --> |HTTP for web page|WSP["overlay web view
+        on a provided /url/route"]
+    BJMO1 --> |websocket updates the view with Lua code|WSP
+    BJ -..-> BJMO2((ByteJam Overlay))
     end
-    DF2 ---> TIC80[Modified TIC-80]
-    WSP --> OBS(OBS browser view)
+    DF2 --> TIC80[Modified TIC-80]
+    WSP --> OBS[OBS browser view]
+    BJCP <--> WB[Web Browser]
 ```
 
 It will take the following arguments:
-- `--sourcefile` - (required) the file to watch
-- `--destfile` - (required) the file that the server TIC should import
-- `--port` - (required) the updating sourcecode will be sent to `http://localhost:PORT`
-- `--playername` - (optional) the playername for an overlay (might be handy for initial testing!)
+- `--port` - (required) the admin panel and overlays will be served from `http://localhost:PORT`
 
 So will be invoked like:
 
-`bytejammer2.exe bytejam-overlay --sourcefile file-from-ticws.dat --destfile file-for-tic-codeimport.dat --port 8001 --playername JTRUK`
-
-If using ticws, You'll need to modify the setup to use this intermediate step.
+`bytejammer2.exe studio --port 8001`
 
 Running it will look something like:
 
 #### Server
 
-This connects to Alkama's server, so change the connection room/name so you don't clash with anyone else testing it. Also check your fft settings, etc, for live.
+In the web panel, provide a websocket URL to listen to (i.e. `ws://[alkamas-server]/room/user`) and a Player Name.
+
+The player name will be turned into a no-spaces, valid character slug, which becomes an overlay URL, and a file for the TIC to watch.
+
+Check your fft settings, etc, for live.
 
 ```cli
 # Start ticws, listening to a websocket and dumping the data to the file system
 .\ticws-server.exe bytejamobs yourname bytejamobs-ticws-output.dat
 
-# Start Bytejammer, watching that file, dumping a modified version to the file system and providing a web source at http://localhost:8001/
-.\bytejammer2.exe bytejam-overlay --sourcefile bytejamobs-ticws-output.dat --destfile bytejamobs-running.dat --playername JTRUK --port 8001
+(Run ByteJammer in Studio mode and Launch a TIC Overlay)
 
 # Run a TIC, watching the modified file
 .\tic80.exe --skip --codeimport=bytejamobs-running.dat --delay=5 --fft --fftcaptureplaybackdevices 
@@ -276,3 +282,5 @@ An abstraction of a file system?
 ## TODO
 
 Template for all HTML panels.
+
+
