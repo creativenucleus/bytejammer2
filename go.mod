@@ -5,6 +5,7 @@ go 1.22.1
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
+	github.com/gosimple/slug v1.15.0
 	github.com/nsf/termbox-go v1.1.1
 	github.com/stretchr/testify v1.9.0
 	github.com/tyler-sommer/stick v1.0.6
@@ -15,6 +16,7 @@ require (
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect

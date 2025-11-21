@@ -39,29 +39,15 @@
 							<div class="row mb-3">
 								<label for="listen-to-url" class="col-sm-2 col-form-label">Websocket URL</label>
 								<div class="col-sm-10">
-									<input type="url" class="form-control" id="listen-to-url" aria-describedby="help-listen-url">
+									<input type="url" class="form-control" id="listen-to-url" aria-describedby="help-listen-url" value="ws://drone.alkama.com:9000/bytejammer/testuser">
 									<div id="help-listen-url" class="form-text">e.g. ws://drone.alkama.com:9000/bytejammer/testuser</div>
-								</div>
-							</div> 
-							<div class="row mb-3">
-								<label for="overlay-port" class="col-sm-2 col-form-label">Port</label>
-								<div class="col-sm-10">
-									<input type="text" class="form-control" id="overlay-port" inputmode="numeric" pattern="\d*" aria-describedby="help-overlay-port">
-									<div id="help-overlay-port" class="form-text">e.g. 8192</div>
-								</div>
-							</div>
-							<div class="row mb-3">
-								<label for="file-stub" class="col-sm-2 col-form-label">File Stub</label>
-								<div class="col-sm-10">
-									<input type="text" class="form-control" id="file-stub" aria-describedby="help-file-stub">
-									<div id="help-file-stub" class="form-text">e.g. jtruk-code-for-tic.dat</div>
 								</div>
 							</div> 
 							<div class="row mb-3">
 								<label for="player-name" class="col-sm-2 col-form-label">Player Name</label>
 								<div class="col-sm-10">
-									<input type="text" class="form-control" id="player-name" aria-describedby="help-player-name">
-									<div id="help-player-name" class="form-text">e.g. jtruk</div>
+									<input type="text" class="form-control" id="player-name" aria-describedby="help-player-name" value="jtruk">
+									<div id="help-player-name" class="form-text">e.g. jtruk (spaces and non-alphanumeric characters will be removed)</div>
 								</div>
 							</div>
 							<button class="action-button">Launch</button>
@@ -72,15 +58,25 @@
 		
 			<textarea id="log" style="display: none"></textarea>
 			<button onclick="ToggleLog()">toggle log</button>
-		</div>
 
+			<!-- Toast -->
+			<div class="toast-container position-fixed bottom-0 end-0 p-3">
+				<div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+					<div class="toast-header">
+						<strong class="me-auto" id="toast-title"></strong>
+						<button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+					</div>
+					<div class="toast-body" id="toast-body"></div>
+				</div>
+			</div>
+		</div>
 
 		<script src="/static/package/bootstrap-5.3.8-dist/js/bootstrap.bundle.min.js"></script>
 		<script>
 			const ws = new BjmrWebSocket()
 
 			window.onload = () => {
-				const conn = ws.open("ws://" + document.location.host + "/ws");
+				const conn = ws.open("ws://" + document.location.host + "/ws/studio");
 				if(!conn) {                    
 					setWsLocalStatusText('error', "Your browser does not support WebSockets");
 					// TODO: Bigger error?
@@ -134,19 +130,23 @@
 			const serverPost = async(action, data) => {
 				const url = 'http://' + document.location.host + "/action/" + action + '.json';
 
-				console.log(data);
-				console.log(JSON.stringify(data));
-
-				const response = await fetch(url, {
-					method: 'POST',
-					headers: {
-						'Accept': 'application/json',
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify(data)
+				return new Promise((resolve, reject) => {
+					fetch(url, {
+						method: 'POST',
+						headers: {
+							'Accept': 'application/json',
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify(data)
+					}).then(function(res) {
+						if(res.ok){
+							const result = res.json();
+							resolve(result);
+						}
+					}).catch(function(e) {
+						reject(e);
+					});
 				});
-
-				return response.json();
 			}
 
 			const form = document.getElementById("form-launch-tic-with-overlay");
@@ -154,27 +154,49 @@
 				event.preventDefault();
 
 				const listenToUrl = document.getElementById("listen-to-url").value
-				const overlayPort = document.getElementById("overlay-port").value
-				const fileStub = document.getElementById("file-stub").value
 				const playerName = document.getElementById("player-name").value
-				if(!listenToUrl || !overlayPort || !fileStub || !playerName){
+				if(!listenToUrl || !playerName){
 					alert("Please fill in all fields");
 					return false;
 				}
 
 				(async () => {
-					const result = await serverPost('launch-tic-with-overlay', {
+					const fnTitle = "Launch TIC-80 with OBS Overlay";
+					serverPost('launch-tic-with-overlay', {
 						listenToUrl: listenToUrl,
-						overlayPort: overlayPort,
-						fileStub: fileStub,
 						playerName: playerName
+					}).then((result) => {
+						form.reset();
+						showToast('ok', fnTitle, result.message);
+					}).catch((error) => {
+						showToast('error', fnTitle, error.message);
 					});
 				})();
 			});
 
 			const handleMsgServerStatus = (data) => {
 				console.log(data)
-				alert("Studio server status: running = " + data.running_count);
+				alert("Studio server status: running = " + data);
+			}
+
+			const showToast = (severity, title, message) => {
+				const elToast = document.getElementById('liveToast')
+				const bsToast = bootstrap.Toast.getOrCreateInstance(elToast)
+
+				elToast.classList.remove("bg-danger", "bg-success");
+				switch(severity) {
+					case 'ok':
+						elToast.classList.add("bg-success");
+						break;
+					case 'error':
+						elToast.classList.add("bg-danger");
+						break;
+				}
+
+				document.getElementById('toast-title').innerText = title;
+				document.getElementById('toast-body').innerText = message;
+
+				bsToast.show()
 			}
 		</script>
 	</body>

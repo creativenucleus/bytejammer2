@@ -20,6 +20,8 @@
 		<div id="stage">(...hidden...)</div>
 
 		<script>
+			const wsPath = "{{ws_path}}"
+
 			const ws = new BjmrWebSocket()
 			const elUpdateable = document.getElementById("updateable");
 
@@ -44,7 +46,7 @@
 			};
 
 			window.onload = () => {
-				const conn = ws.open("ws://" + document.location.host + "/ws-obs-overlay-code");
+				const conn = ws.open("ws://" + document.location.host + wsPath);
 				if(!conn) {                    
 					setWsLocalStatusText('error', "Your browser does not support WebSockets");
 					// TODO: Bigger error?

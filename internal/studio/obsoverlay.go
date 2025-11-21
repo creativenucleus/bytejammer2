@@ -1,4 +1,6 @@
-package controlpanel
+package studio
+
+// TODO: Possibly more flexible if not in the studio package?
 
 // Watches a file (potentially deposited by Ticws) and splits into an OBS overlay, and a file for TIC to watch
 
@@ -8,24 +10,17 @@ import (
 	"os"
 	"time"
 
+	"github.com/creativenucleus/bytejammer2/internal/controlpanel/obs"
 	"github.com/creativenucleus/bytejammer2/internal/log"
 	"github.com/creativenucleus/bytejammer2/internal/tic"
 )
 
-// should either have a client or a host set
-type ObsOverlayServerConfig struct {
-	ProxyDestFile  string
-	PlayerName     string
-	ObsOverlayPort uint
-}
-
-func ObsOverlayRun(chUserExitRequest <-chan bool, conf ObsOverlayServerConfig, chDataUpdate <-chan []byte) error {
-	var obsOverlay *ObsOverlayCode
-	go func() error {
-		obsOverlay = NewObsOverlayCode(conf.ObsOverlayPort)
-		return obsOverlay.Launch()
-	}()
-
+func OverlayRunner(
+	chUserExitRequest <-chan bool,
+	chDataUpdate <-chan []byte,
+	obsCodeOverlayPanel *obs.CodeOverlayPanel,
+	fileToWritePath string,
+) error {
 	lastLogTime := time.Time{}
 	throttleDuration := 5 * time.Second
 	throttledLog := func(level string, message string) {
@@ -84,7 +79,7 @@ func ObsOverlayRun(chUserExitRequest <-chan bool, conf ObsOverlayServerConfig, c
 			lastEditorCode = ticStateFromFile.Code
 
 			// Send code to OBS overlay
-			obsOverlay.SetCode(ticStateToOverlay, conf.PlayerName, isEditorUpdated)
+			obsCodeOverlayPanel.SetCode(ticStateToOverlay, isEditorUpdated)
 
 			if isRunningNewCode {
 				throttledLog("info", "new code!")
@@ -105,10 +100,10 @@ func ObsOverlayRun(chUserExitRequest <-chan bool, conf ObsOverlayServerConfig, c
 					continue
 				}
 
-				err = os.WriteFile(conf.ProxyDestFile, dataForTIC, 0644)
+				err = os.WriteFile(fileToWritePath, dataForTIC, 0644)
 				if err != nil {
 					// log but don't exit
-					throttledLog("error", fmt.Sprintf("Error writing dest file %s: %s", conf.ProxyDestFile, err.Error()))
+					throttledLog("error", fmt.Sprintf("Error writing dest file %s: %s", fileToWritePath, err.Error()))
 					continue
 				}
 
@@ -126,10 +121,10 @@ func ObsOverlayRun(chUserExitRequest <-chan bool, conf ObsOverlayServerConfig, c
 					continue
 				}
 
-				err = os.WriteFile(conf.ProxyDestFile, dataForTIC, 0644)
+				err = os.WriteFile(fileToWritePath, dataForTIC, 0644)
 				if err != nil {
 					// log but don't exit
-					throttledLog("error", fmt.Sprintf("Error writing dest file %s: %s", conf.ProxyDestFile, err.Error()))
+					throttledLog("error", fmt.Sprintf("Error writing dest file %s: %s", fileToWritePath, err.Error()))
 					continue
 				}
 			}

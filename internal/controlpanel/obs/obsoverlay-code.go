@@ -1,4 +1,4 @@
-package controlpanel
+package obs
 
 import (
 	_ "embed"
@@ -7,63 +7,69 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/creativenucleus/bytejammer2/internal/basecontrolpanel"
 	"github.com/creativenucleus/bytejammer2/internal/message"
 	"github.com/creativenucleus/bytejammer2/internal/tic"
 	"github.com/creativenucleus/bytejammer2/internal/websocket"
+	"github.com/gorilla/mux"
 	"github.com/tyler-sommer/stick"
 )
 
 //go:embed page-templates/obs-overlay-code.html
-var obsOverlayCodeIndexHtml []byte
+var overlayCodePanelIndexHtml []byte
 
-type ObsOverlayCode struct {
-	basecontrolpanel.BaseControlPanel
-	chSend chan message.Msg
+type CodeOverlayPanel struct {
+	pathOverlay string
+	chSendCode  chan message.Msg
+	// playerName is infused into the overlay HTML (this could be changed)
+	playerName string
 }
 
-func NewObsOverlayCode(
-	port uint,
-	//	chMakeSnapshot chan<- message.MsgDataMakeSnapshot,
-	//	chNewPlayer chan<- bool,
-) *ObsOverlayCode {
-	panel := ObsOverlayCode{
-		BaseControlPanel: *basecontrolpanel.NewControlPanel(port, fmt.Sprintf("Go to http://localhost:%d/", port)),
-	}
+func NewCodeOverlayPanel(
+	router *mux.Router,
+	pathOverlay string,
+	pathWSOverlay string,
+	playerName string,
+	chError chan error,
+) (*CodeOverlayPanel, error) {
+	panel := CodeOverlayPanel{}
 
-	chError := make(chan error)
-	panel.chSend = make(chan message.Msg)
+	panel.chSendCode = make(chan message.Msg)
+	panel.pathOverlay = pathOverlay
+	panel.playerName = playerName
 
-	router := panel.Router()
+	router.HandleFunc(panel.pathOverlay, func(w http.ResponseWriter, r *http.Request) {
+		env := stick.New(nil)
 
-	router.HandleFunc("/", panel.webIndex)
-	router.HandleFunc("/ws-obs-overlay-code",
+		err := env.Execute(
+			string(overlayCodePanelIndexHtml),
+			w,
+			map[string]stick.Value{
+				"ws_path": pathWSOverlay,
+			},
+		)
+		if err != nil {
+			log.Println("write:", err)
+		}
+	})
+
+	router.HandleFunc(pathWSOverlay,
 		websocket.NewWebSocketMsgHandler(
 			func(msgType message.MsgType, msgRaw []byte) {
 				switch msgType {
-
+				// No incoming messages expected
 				default:
 					fmt.Printf("Message not understood: %s\n", msgType)
 				}
 			},
 			chError,
-			panel.chSend,
+			panel.chSendCode,
 		),
 	)
 
-	return &panel
+	return &panel, nil
 }
 
-func (cp *ObsOverlayCode) webIndex(w http.ResponseWriter, r *http.Request) {
-	env := stick.New(nil)
-
-	err := env.Execute(string(obsOverlayCodeIndexHtml), w, map[string]stick.Value{"session_key": "session"})
-	if err != nil {
-		log.Println("write:", err)
-	}
-}
-
-func (o *ObsOverlayCode) SetCode(state tic.State, playerName string, isEditorUpdated bool) error {
+func (p *CodeOverlayPanel) SetCode(state tic.State, isEditorUpdated bool) error {
 	// TODO: sanitise code?
 	splitCode := strings.Split(strings.ReplaceAll(string(state.Code), "\r\n", "\n"), "\n")
 	if state.CursorY > 0 && state.CursorY <= len(splitCode) {
@@ -91,11 +97,11 @@ func (o *ObsOverlayCode) SetCode(state tic.State, playerName string, isEditorUpd
 
 	// TODO: sanitise
 	playerNameHtml := ""
-	if playerName != "" {
-		playerNameHtml = fmt.Sprintf(`<div class="playerName">%s</div>`, playerName)
+	if p.playerName != "" {
+		playerNameHtml = fmt.Sprintf(`<div class="playerName">%s</div>`, p.playerName)
 	}
 
-	o.chSend <- message.Msg{
+	p.chSendCode <- message.Msg{
 		Type: "obs-overlay-html",
 		StringData: fmt.Sprintf(
 			`%s<div id="codeContainer"><div class="code inactive-fade">%s</div></div>`,

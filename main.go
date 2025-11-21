@@ -11,7 +11,6 @@ import (
 	"github.com/creativenucleus/bytejammer2/config"
 	"github.com/creativenucleus/bytejammer2/internal/controlpanel"
 	"github.com/creativenucleus/bytejammer2/internal/files"
-	"github.com/creativenucleus/bytejammer2/internal/filewatcher"
 	"github.com/creativenucleus/bytejammer2/internal/jukebox"
 	"github.com/creativenucleus/bytejammer2/internal/keyboard"
 	"github.com/creativenucleus/bytejammer2/internal/kiosk"
@@ -94,53 +93,54 @@ func runCli() error {
 				return runJukebox(keyboard.ChUserExitRequest)
 			},
 		}, {
-			Name:  "bytejam-overlay",
-			Usage: "Starts a the overlay - for use with OBS (this is a bit hacky!)",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     "sourcefile",
-					Usage:    "File to read (e.g. C:/Users/username/Documents/ticws-output.dat)",
-					Required: true,
-				},
-				&cli.StringFlag{
-					Name:     "destfile",
-					Usage:    "File to output (e.g. C:/Users/username/Documents/MyFile.dat)",
-					Required: true,
-				},
-				&cli.UintFlag{
-					Name:     "port",
-					Usage:    "Port to display overlay (e.g. 9123 will provide http://localhost:9123)",
-					Required: true,
-				},
-				&cli.StringFlag{
-					Name:  "playername",
-					Usage: "The player name to display on the overlay",
-				},
-			},
-			Action: func(cCtx *cli.Context) error {
-				sourceFilePath := cCtx.String("sourcefile")
-				if sourceFilePath == "" {
-					panic("sourcefile is required")
-				}
+			/*			Name:  "bytejam-overlay",
+						Usage: "Starts a the overlay - for use with OBS (this is a bit hacky!)",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:     "sourcefile",
+								Usage:    "File to read (e.g. C:/Users/username/Documents/ticws-output.dat)",
+								Required: true,
+							},
+							&cli.StringFlag{
+								Name:     "destfile",
+								Usage:    "File to output (e.g. C:/Users/username/Documents/MyFile.dat)",
+								Required: true,
+							},
+							&cli.UintFlag{
+								Name:     "port",
+								Usage:    "Port to display overlay (e.g. 9123 will provide http://localhost:9123)",
+								Required: true,
+							},
+							&cli.StringFlag{
+								Name:  "playername",
+								Usage: "The player name to display on the overlay",
+							},
+						},
+						Action: func(cCtx *cli.Context) error {
+							sourceFilePath := cCtx.String("sourcefile")
+							if sourceFilePath == "" {
+								panic("sourcefile is required")
+							}
 
-				destFilePath := cCtx.String("destfile")
-				if destFilePath == "" {
-					panic("destfile is required")
-				}
+							destFilePath := cCtx.String("destfile")
+							if destFilePath == "" {
+								panic("destfile is required")
+							}
 
-				port := cCtx.Uint("port")
+							port := cCtx.Uint("port")
 
-				config := controlpanel.ObsOverlayServerConfig{
-					ProxyDestFile:  destFilePath,
-					PlayerName:     cCtx.String("playername"),
-					ObsOverlayPort: port,
-				}
+							config := controlpanel.ObsOverlayServerConfig{
+								ProxyDestFile:  destFilePath,
+								PlayerName:     cCtx.String("playername"),
+								ObsOverlayPort: port,
+							}
 
-				log.GlobalLog.Log("info", fmt.Sprintf("Starting a file proxy (source: %s) (dest: %s)", sourceFilePath, destFilePath))
-				chFileUpdated := filewatcher.NewFileWatcher(destFilePath, 100*time.Millisecond, keyboard.ChUserExitRequest)
+							log.GlobalLog.Log("info", fmt.Sprintf("Starting a file proxy (source: %s) (dest: %s)", sourceFilePath, destFilePath))
+							chFileUpdated := filewatcher.NewFileWatcher(destFilePath, 100*time.Millisecond, keyboard.ChUserExitRequest)
 
-				return controlpanel.ObsOverlayRun(keyboard.ChUserExitRequest, config, chFileUpdated)
-			},
+							return controlpanel.ObsOverlayRun(keyboard.ChUserExitRequest, config, chFileUpdated)
+						},
+			*/
 		}, {
 			Name:  "client",
 			Usage: "run a default TIC-80 client",
@@ -578,7 +578,7 @@ func runStudio(chUserExitRequest <-chan bool, port uint) error {
 	// #TODO: error handling?!
 	go func() error {
 		studio := studio.NewStudio(chUserExitRequest, port)
-		return studio.Launch()
+		return studio.Run()
 	}()
 
 	for {

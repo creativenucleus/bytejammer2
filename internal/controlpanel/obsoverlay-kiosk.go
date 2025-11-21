@@ -51,7 +51,7 @@ func NewObsOverlayKiosk(
 func (cp *ObsOverlayKiosk) webIndex(w http.ResponseWriter, r *http.Request) {
 	env := stick.New(nil)
 
-	err := env.Execute(string(obsOverlayKioskIndexHtml), w, map[string]stick.Value{"session_key": "session"})
+	err := env.Execute(string(obsOverlayKioskIndexHtml), w, nil)
 	if err != nil {
 		log.Println("write:", err)
 	}

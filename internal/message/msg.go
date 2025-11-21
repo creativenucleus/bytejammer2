@@ -34,8 +34,6 @@ const MsgTypeStudioStartTicWithOverlay = MsgType("start-tic-with-overlay")
 
 type MsgDataStartTicWithOverlay struct {
 	ListenToUrl string `json:"listenToUrl"`
-	FileStub    string `json:"fileStub"`
-	OverlayPort uint   `json:"overlayPort,string"`
 	PlayerName  string `json:"playerName"`
 }
 

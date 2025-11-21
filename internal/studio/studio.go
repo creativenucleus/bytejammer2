@@ -6,11 +6,17 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"path/filepath"
 
-	"github.com/creativenucleus/bytejammer2/internal/basecontrolpanel"
-	"github.com/creativenucleus/bytejammer2/internal/controlpanel"
+	"github.com/creativenucleus/bytejammer2/config"
+	"github.com/creativenucleus/bytejammer2/internal/controlpanel/obs"
+	"github.com/creativenucleus/bytejammer2/internal/files"
 	"github.com/creativenucleus/bytejammer2/internal/message"
+	"github.com/creativenucleus/bytejammer2/internal/webserver"
 	"github.com/creativenucleus/bytejammer2/internal/websocket"
+	"github.com/creativenucleus/bytejammer2/internal/webstatic"
+	"github.com/gosimple/slug"
 	"github.com/tyler-sommer/stick"
 )
 
@@ -18,30 +24,46 @@ import (
 var studioIndexHtml []byte
 
 type ticSocketWatcher struct {
-	listenToUrl string
-	overlayPort uint
+	listenToURL string
 	playerName  string
+	slug        string
+	filePath    string
+	overlayURL  string
 }
 
 type Studio struct {
-	controlPanel      basecontrolpanel.BaseControlPanel
+	server            *webserver.Webserver
 	ticSocketWatchers []ticSocketWatcher
+	// Channel to listen for user exit requests
+	chUserExitRequest <-chan bool
+	// Send errors to the on this channel (we can log them, or send them to the web panel)
+	chError chan error
+	// Send messages to the web panel with this channel
+	chWSSend chan message.Msg
 }
 
 func NewStudio(
 	chUserExitRequest <-chan bool,
 	port uint,
 ) *Studio {
-	controlPanel := *basecontrolpanel.NewControlPanel(port, fmt.Sprintf("Go to http://localhost:%d/", port))
-
-	studio := Studio{
-		controlPanel: controlPanel,
+	logMessage := fmt.Sprintf("Starting Studio control panel on http://localhost:%d", port)
+	server, err := webserver.NewWebserver(port, logMessage)
+	if err != nil {
+		log.Fatalf("Could not create webserver: %s", err)
 	}
 
-	chError := make(chan error)
-	chSend := make(chan message.Msg)
+	studio := Studio{}
+	studio.server = server
+	studio.chUserExitRequest = chUserExitRequest
+	studio.chError = make(chan error)
+	studio.chWSSend = make(chan message.Msg)
 
-	router := studio.controlPanel.Router()
+	router := server.Router()
+
+	err = server.StaticRoute(webstatic.FS(), webstatic.FSEmbedPath(), "/static/")
+	if err != nil {
+		log.Fatalf("Could not setup static route: %s", err)
+	}
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		env := stick.New(nil)
@@ -53,8 +75,6 @@ func NewStudio(
 	})
 
 	router.HandleFunc("/action/launch-tic-with-overlay.json", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("%+v\n", r.Body)
-
 		var body message.MsgDataStartTicWithOverlay
 		err := json.NewDecoder(r.Body).Decode(&body)
 		if err != nil {
@@ -63,51 +83,35 @@ func NewStudio(
 			return
 		}
 
-		// TODO: change!
-		go func() {
-			destFilePath := body.FileStub
-			config := controlpanel.ObsOverlayServerConfig{
-				ProxyDestFile:  destFilePath,
-				PlayerName:     body.PlayerName,
-				ObsOverlayPort: body.OverlayPort,
-			}
+		socketWatcher, err := studio.addTicSocketWatcher(body.ListenToUrl, body.PlayerName)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, `{"error":"could not add TIC socket watcher: %s"}`, err)
+			return
+		}
 
-			// TODO: faked!
-			chWebsocketWatcher := make(<-chan []byte)
-
-			err = controlpanel.ObsOverlayRun(chUserExitRequest, config, chWebsocketWatcher)
-			if err != nil {
-				fmt.Printf("Error running overlay: %s\n", err)
-				return
-			}
-		}()
-
-		// Fake for now
-		studio.ticSocketWatchers = append(studio.ticSocketWatchers, ticSocketWatcher{
-			listenToUrl: body.ListenToUrl,
-			overlayPort: body.OverlayPort,
-			playerName:  body.PlayerName,
-		})
+		logMessage := fmt.Sprintf("Started TIC socket watcher for player '%s' listening to '%s' (file at %s) with (overlay on %s)",
+			body.PlayerName,
+			body.ListenToUrl,
+			socketWatcher.filePath,
+			socketWatcher.overlayURL,
+		)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(
 			struct {
-				Success bool `json:"success"`
+				Success bool   `json:"success"`
+				Message string `json:"message"`
 			}{
 				Success: true,
+				Message: logMessage,
 			},
 		)
 
-		// Send Status via websocket
-		chSend <- message.Msg{
-			Type: message.MsgTypeStudioServerStatus,
-			Data: map[string]any{
-				"running_count": studio.ticSocketWatchers,
-			},
-		}
+		studio.sendServerStatus()
 	}).Methods("POST")
 
-	router.HandleFunc("/ws",
+	router.HandleFunc("/ws/studio",
 		websocket.NewWebSocketMsgHandler(
 			func(msgType message.MsgType, msgRaw []byte) {
 				switch msgType {
@@ -115,14 +119,92 @@ func NewStudio(
 					fmt.Printf("Message not understood: %s\n", msgType)
 				}
 			},
-			chError,
-			chSend,
+			studio.chError,
+			studio.chWSSend,
 		),
 	)
 
 	return &studio
 }
 
-func (s *Studio) Launch() error {
-	return s.controlPanel.Launch()
+func (s *Studio) Run() error {
+	return s.server.Run()
+}
+
+// addTicSocketWatcher adds a new TIC socket watcher
+// listenToURL is the URL to listen to TIC data from
+// playerName is the name of the player to associate with this watcher
+// The playerName will be used to launch a URL, and a file for the TIC to watch
+// Returns the file slug
+func (s *Studio) addTicSocketWatcher(listenToURL string, playerName string) (*ticSocketWatcher, error) {
+	slug := slug.Make(fmt.Sprintf("tic-overlay-%s", playerName)) // TODO: make unique!
+	if slug == "" {
+		return nil, fmt.Errorf("could not create slug from player name: %s", playerName)
+	}
+
+	fileDir := filepath.Join(config.CONFIG.WorkDir, "bytejam")
+	err := files.EnsurePathExists(fileDir, 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	filePath := filepath.Join(fileDir, slug+".ticcode")
+
+	// TODO: Ensure we aren't duplicating slugs
+
+	chReceived := make(chan []byte)
+
+	// TODO: this is all quite dicey
+
+	overlayURLPath := fmt.Sprintf("/obs/%s/overlay", slug)
+	overlayURLPathWS := fmt.Sprintf("/obs/%s/ws-overlay", slug)
+
+	codeOverlayPanel, err := obs.NewCodeOverlayPanel(s.server.Router(), overlayURLPath, overlayURLPathWS, playerName, s.chError)
+	if err != nil {
+		s.chError <- fmt.Errorf("could not create OBS overlay code panel: %s", err)
+		return nil, err
+	}
+
+	wsURL, err := url.Parse(listenToURL)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		err = websocket.Tic80SocketListener(*wsURL, chReceived)
+		if err != nil {
+			fmt.Printf("Error running socket echo: %s\n", err)
+		}
+	}()
+
+	go func() {
+		err = OverlayRunner(s.chUserExitRequest, chReceived, codeOverlayPanel, filePath)
+		if err != nil {
+			fmt.Printf("Error running overlay: %s\n", err)
+		}
+	}()
+
+	socketWatcher := ticSocketWatcher{
+		listenToURL: listenToURL,
+		playerName:  playerName,
+		slug:        slug,
+		filePath:    filePath,
+		overlayURL:  overlayURLPath,
+	}
+
+	// Fake for now
+	s.ticSocketWatchers = append(s.ticSocketWatchers, socketWatcher)
+
+	return &socketWatcher, nil
+}
+
+// sendServerStatus sends the current server status to all connected websocket clients
+func (s *Studio) sendServerStatus() {
+	// Send Status via websocket
+	s.chWSSend <- message.Msg{
+		Type: message.MsgTypeStudioServerStatus,
+		Data: map[string]any{
+			"socket_watchers": s.ticSocketWatchers,
+		},
+	}
 }
