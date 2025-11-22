@@ -294,7 +294,6 @@ func runCli() error {
 				return kiosk.RunServer(keyboard.ChUserExitRequest, config)
 			},
 		}, {
-			// Experimental
 			Name:  "studio",
 			Usage: "Starts a control panel for the studio - currently just for managing ByteJam server/overlays",
 			Flags: []cli.Flag{

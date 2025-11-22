@@ -87,6 +87,7 @@
                 }
 
 				addToLog('info', "Websocket to bytejammer.exe: Initialising...");
+				setWsLocalStatusText('info', "Initialising...");
 
 				conn.onerror = (error) => {
 					addToLog("error", "Websocket to bytejammer.exe");

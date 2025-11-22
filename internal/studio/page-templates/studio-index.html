@@ -118,6 +118,7 @@
                 }
 
 				addToLog('info', "Websocket to bytejammer.exe: Initialising...");
+				setWsLocalStatusText('info', "Initialising...");
 
 				conn.onerror = (error) => {
 					addToLog("error", "Websocket to bytejammer.exe");
@@ -256,10 +257,11 @@
 						break;
 					case "copy-to-clipboard":
 						const text = element.getAttributeNode("data-text").value;
+						const valueName = element.getAttributeNode("data-value-name").value;
 						navigator.clipboard.writeText(text).then(() => {
-							showToast('success', 'Copy to Clipboard', 'Overlay URL copied to clipboard');
+							showToast('success', 'Copy to Clipboard', `${valueName} copied to clipboard`);
 						}).catch((err) => {
-							showToast('error', 'Copy to Clipboard', 'Failed to copy: ' + err);
+							showToast('error', 'Copy to Clipboard', 'Failed to copy ${valueName}: ' + err);
 						});
 						break;
 
@@ -309,15 +311,16 @@
 					serverStatus.overlays.forEach(overlay => {
 						overlayButtonHTML = "";
 						if(overlay.overlayURL) {
-							overlayButtonHTML = `<button class="btn btn-primary" data-action-click="copy-to-clipboard" data-text="${overlay.overlayURL}">Copy</button>`;
+							overlayButtonHTML = `<button class="btn btn-primary" data-action-click="copy-to-clipboard" data-value-name="Overlay URL" data-text="${overlay.overlayURL}">Copy Overlay URL</button>`;
 						}
-
+						filepathButtonHTML = `<button class="btn btn-primary" data-action-click="copy-to-clipboard" data-value-name="File Path" data-text="${overlay.filePath}">Copy Filepath</button>`;
+						
 						innerHtml += 
 							`<tr>` +
 								`<td>${overlay.playerName}</td>` +
 								`<td>${overlay.listenToURL}</td>` +
 								`<td>${overlayButtonHTML}</td>` +
-								`<td>${overlay.filePath}</td>` +
+								`<td>${filepathButtonHTML}</td>` +
 								`<td><button class="btn btn-danger" data-action-click="stop-tic-runner" data-id="${overlay.id}">Stop</button></td>` +
 							`</tr>`;
 					});
