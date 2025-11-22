@@ -239,31 +239,26 @@ The URL to attach to in order to communicate with the server.
 
 ```mermaid
 flowchart LR
-    Z[ByteJammer kiosk-client]
-    Z --> A([ByteJammer
-        kiosk-server])
+    _KC[ByteJammer kiosk-client]
     subgraph ByteJammer - Kiosk Server
-    A --> B["control panel
-        (web server
-        given _port1_)"]
-    B --> |HTTP for web page|X["web page (control panel)
-        on
-        http://localhost:port1/
+        BJ([ByteJammer
+            kiosk-server])
+        JUKE{Jukebox function}
+        OBS["OBS overlay
+            (web server
+            given _port2_)"]
+        OBSV["web page
+            on
+            http://localhost:port2/
         "]
-    B --> |websocket|X
-    A <--> C{Jukebox function}
-    A .-> |optional|G["OBS overlay
-        (web server
-        given _port2_)"]
-    G --> |HTTP for web page|F["web page (overlay for OBS)
-        on
-        http://localhost:port2/
-        "]
-    G --> |websocket|F
     end
-    C <---> |decorated Lua file|D[Modified TIC-80]
-    X --> E[Web Browser]
-    F --> H[OBS Browser View]
+    _KC .-> BJ
+    BJ --> JUKE
+    JUKE ----> |decorated Lua file|D[Modified TIC-80]
+    JUKE .-> |optional|OBS
+    OBS --> |HTTP for web page|OBSV
+    OBS --> |websocket|OBSV
+    OBSV --> H[OBS Browser View]
 ```
 
 #### Arguments
@@ -321,6 +316,7 @@ An abstraction of a file system?
 ## TODO
 
 Template for all HTML panels.
+
 
 
 
