@@ -149,7 +149,6 @@
 							break;
 
 						case "log":
-							console.log(msg);
 							handleMsgLog(msg.data);
 							break;
 
@@ -160,25 +159,36 @@
 			}
 
 			// TODO: error handling
-			const serverPost = async(action, data) => {
+			const serverPost = (action, data) => {
 				const url = 'http://' + document.location.host + "/action/" + action + '.json';
 
-				return new Promise((resolve, reject) => {
-					fetch(url, {
-						method: 'POST',
-						headers: {
-							'Accept': 'application/json',
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify(data)
-					}).then(function(res) {
-						if(res.ok){
-							const result = res.json();
-							resolve(result);
+				return new Promise(async (resolve, reject) => {
+					try {
+						const res = await fetch(url, {
+							method: 'POST',
+							headers: {
+								'Accept': 'application/json',
+								'Content-Type': 'application/json'
+							},
+							body: JSON.stringify(data)
+						});
+						
+						let result = null;
+						try {
+							result = await res.json();
+						} catch (e) {
+							// ignore (result = null)
 						}
-					}).catch(function(e) {
-						reject(e);
-					});
+
+						if(!res.ok){
+							reject(result);
+							return;
+						}
+						
+						resolve(result);
+					} catch (error) {
+						reject({message: error});
+					}
 				});
 			}
 
@@ -243,7 +253,14 @@
 								showToast('error', fnTitle, error.message);
 							});
 						})();
-
+						break;
+					case "copy-to-clipboard":
+						const text = element.getAttributeNode("data-text").value;
+						navigator.clipboard.writeText(text).then(() => {
+							showToast('success', 'Copy to Clipboard', 'Overlay URL copied to clipboard');
+						}).catch((err) => {
+							showToast('error', 'Copy to Clipboard', 'Failed to copy: ' + err);
+						});
 						break;
 
 					default:
@@ -290,14 +307,19 @@
 						</tr>`;
 				} else {
 					serverStatus.overlays.forEach(overlay => {
-						innerHtml += `
-						<tr>
-							<td>${overlay.playerName}</td>
-							<td>${overlay.listenToURL}</td>
-							<td><a href="${overlay.overlayURL}" target="_blank">${overlay.overlayURLPath}</a></td>
-							<td>${overlay.filePath}</td>
-							<td><button class="btn btn-danger" data-action-click="stop-tic-runner" data-id="${overlay.id}">Stop</button></td>
-						</tr>`;
+						overlayButtonHTML = "";
+						if(overlay.overlayURL) {
+							overlayButtonHTML = `<button class="btn btn-primary" data-action-click="copy-to-clipboard" data-text="${overlay.overlayURL}">Copy</button>`;
+						}
+
+						innerHtml += 
+							`<tr>` +
+								`<td>${overlay.playerName}</td>` +
+								`<td>${overlay.listenToURL}</td>` +
+								`<td>${overlayButtonHTML}</td>` +
+								`<td>${overlay.filePath}</td>` +
+								`<td><button class="btn btn-danger" data-action-click="stop-tic-runner" data-id="${overlay.id}">Stop</button></td>` +
+							`</tr>`;
 					});
 				}
 

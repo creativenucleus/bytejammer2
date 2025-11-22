@@ -81,39 +81,15 @@ func NewStudio(
 	})
 
 	router.HandleFunc("/action/start-tic-runner.json", func(w http.ResponseWriter, r *http.Request) {
-		var body message.MsgDataStartTicRunner
-		err := json.NewDecoder(r.Body).Decode(&body)
+		statusCode, successMessage, err := studio.handleStartTicRunner(r)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, `{"error":"could not decode request: %s"}`, err)
+			w.WriteHeader(statusCode)
+			// TODO: Does this need to be escaped?
+			fmt.Fprintf(w, `{"message": "%s"}`, err)
 			return
 		}
 
-		switch body.ObsOverlay {
-		case "none":
-			_, err = studio.addTicRunner(body.ListenToUrl, body.PlayerName)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, `{"error":"could not add TIC runner: %s"}`, err)
-				return
-			}
-
-		case "code":
-			_, err = studio.addTicRunnerWithOverlay(body.ListenToUrl, body.PlayerName)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, `{"error":"could not add TIC runner with overlay: %s"}`, err)
-				return
-			}
-
-		default:
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, `{"error":"unknown obsOverlay option: %s"}`, body.ObsOverlay)
-			return
-		}
-
-		responseMessage := fmt.Sprintf("TIC runner: started for player '%s'", body.PlayerName)
-		studio.sendLog("success", responseMessage)
+		studio.sendLog("success", successMessage)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(
@@ -122,7 +98,7 @@ func NewStudio(
 				Message string `json:"message"`
 			}{
 				Success: true,
-				Message: responseMessage,
+				Message: successMessage,
 			},
 		)
 
@@ -195,17 +171,51 @@ func (s *Studio) Run() error {
 	return s.server.Run()
 }
 
+// Returns http status code and [successMessage or error]
+func (s *Studio) handleStartTicRunner(r *http.Request) (int, string, error) {
+	var body message.MsgDataStartTicRunner
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		return http.StatusBadRequest, "", fmt.Errorf("could not decode request: %s", err)
+	}
+
+	slug := slug.Make(fmt.Sprintf("tic-%s", body.PlayerName)) // TODO: make unique!
+	if slug == "" {
+		return http.StatusBadRequest, "", fmt.Errorf("could not create slug from player name: %s", body.PlayerName)
+	}
+
+	for _, existingRunner := range s.ticRunners {
+		if existingRunner.slug == slug {
+			return http.StatusBadRequest, "", fmt.Errorf("a TIC runner with slug '%s' already exists", slug)
+		}
+	}
+
+	switch body.ObsOverlay {
+	case "none":
+		_, err = s.addTicRunner(slug, body.ListenToUrl, body.PlayerName)
+		if err != nil {
+			return http.StatusInternalServerError, "", fmt.Errorf("could not add TIC runner: %s", err)
+		}
+
+	case "code":
+		_, err = s.addTicRunnerWithOverlay(slug, body.ListenToUrl, body.PlayerName)
+		if err != nil {
+			return http.StatusInternalServerError, "", fmt.Errorf("could not add TIC runner with overlay: %s", err)
+		}
+
+	default:
+		return http.StatusBadRequest, "", fmt.Errorf("unknown obsOverlay option: %s", body.ObsOverlay)
+	}
+
+	return http.StatusOK, fmt.Sprintf("TIC runner started for player: '%s'", body.PlayerName), nil
+}
+
 // addTicRunner adds a new socket watcher, outputting to a TIC
 // listenToURL is the URL to listen to TIC data from
 // playerName is the name of the player to associate with this watcher
 // The playerName will be used to create a file for the TIC to watch
 // Returns a ticRunner
-func (s *Studio) addTicRunner(listenToURL string, playerName string) (*ticRunner, error) {
-	slug := slug.Make(fmt.Sprintf("tic-%s", playerName)) // TODO: make unique!
-	if slug == "" {
-		return nil, fmt.Errorf("could not create slug from player name: %s", playerName)
-	}
-
+func (s *Studio) addTicRunner(slug string, listenToURL string, playerName string) (*ticRunner, error) {
 	fileDir := filepath.Join(config.CONFIG.WorkDir, "bytejam")
 	err := files.EnsurePathExists(fileDir, 0755)
 	if err != nil {
@@ -258,12 +268,7 @@ func (s *Studio) addTicRunner(listenToURL string, playerName string) (*ticRunner
 // playerName is the name of the player to associate with this watcher
 // The playerName will be used to launch a URL, and a file for the TIC to watch
 // Returns a ticRunner
-func (s *Studio) addTicRunnerWithOverlay(listenToURL string, playerName string) (*ticRunner, error) {
-	slug := slug.Make(fmt.Sprintf("tic-%s", playerName)) // TODO: make unique!
-	if slug == "" {
-		return nil, fmt.Errorf("could not create slug from player name: %s", playerName)
-	}
-
+func (s *Studio) addTicRunnerWithOverlay(slug string, listenToURL string, playerName string) (*ticRunner, error) {
 	fileDir := filepath.Join(config.CONFIG.WorkDir, "bytejam")
 	err := files.EnsurePathExists(fileDir, 0755)
 	if err != nil {
