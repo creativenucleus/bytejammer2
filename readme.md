@@ -9,8 +9,8 @@ This project is **NOT** ready for outside contributions just now, but that time 
 For celebration of the TIC-80 livecoding / effects scene.
 
 - A jukebox / robot VJ that plays TIC-80 effects for personal enjoyment.
-- A standalone client-server for running ByteJams.
 - A client and server for running the ByteWall.
+- A studio mode for running ByteJams on the server side.
 
 Please read the documentation before running.
 
@@ -57,15 +57,44 @@ Please note: Some functionality requires a [custom version of the Bytebattle bui
 }
 ```
 
-## Studio Mode - Bytejam TIC Runner (with and without overlay)
+## **Jukebox** mode - For running a showcase of TIC effects
+
+Starts a jukebox of effects, pulled from the [DemoZoo livecode archive](https://livecode.demozoo.org/).
+
+```mermaid
+flowchart LR
+    _LCDZ[livecode.demozoo.org]
+    subgraph "Jukebox mode"
+        subgraph "ByteJammer"           
+            JUKE([ByteJammer Jukebox])
+        end
+
+        DF{decorated Lua file}
+    end
+    JUKE ---> |GET index|_LCDZ
+    JUKE ---> |GET each
+        code file|_LCDZ
+    _TIC80[Modified TIC-80]
+
+    JUKE --> |write|DF
+    DF --> _TIC80
+```
+
+- `CONFIG:work_dir` is used to specify where temporary files should be created to be run.
+- `CONFIG:jukebox.rotate_period_in_seconds` specifies how quickly the effects should change.
+- `CONFIG:runnables.tic-80-server` specifies the filepath to the TIC 80 to be started.
+
+(Previous versions of this allowed specification of playlist files, so that should be brought across in future).
+
+## **Studio** mode - Bytejam TIC Runner
 
 This feature is managed by starting in `studio` mode.
 
-You'll need to have a json.config (but so far only `work_dir` matters)
+You'll need to have a json.config (but so far only `work_dir` matters). TICs **are not** automatically started.
 
-This mode watches a decorated Lua file (*), reading changes, and does two things:
-- Writes a modified 'running' version for server TIC to ingest (the one with `--codeimport`).
-- Outputs an updating web page that displays the source code.
+This feature allows you to start a websocket listener, and feeds 'decorated Lua files' (*) on that websocket through to a file, which a modified version of TIC-80 can watch (with `--codeimport`).
+
+Optionally, you can also launch an OBS Overlay, which sends only code with the run signal through to TIC-80, pushing code that is in 'edit mode' from the client through to a web view, which can be used as an overlay by OBS. This allows us to present code over running effects, like Bonzomatic does.
 
 (*) 'a decorated Lua file' refers to the data that we send over a web connection from client to server (i.e. a cursor/run-signal header followed by plain sourcecode).
 
@@ -131,13 +160,10 @@ The player name will be turned into a no-spaces, valid character slug, which bec
 Check your fft settings, etc, for live.
 
 ```cli
-# Start ticws, listening to a websocket and dumping the data to the file system
-.\ticws-server.exe bytejamobs yourname bytejamobs-ticws-output.dat
-
 (Run ByteJammer in Studio mode and Launch a TIC Overlay)
 
-# Run a TIC, watching the modified file
-.\tic80.exe --skip --codeimport=bytejamobs-running.dat --delay=5 --fft --fftcaptureplaybackdevices 
+# Run a TIC, watching the modified file, with the filepath as specified
+.\tic80.exe --skip --codeimport=~/path/to/jtruk.ticcode --delay=5 --fft --fftcaptureplaybackdevices 
 ```
 
 #### Client (if you want to do local testing)
@@ -295,6 +321,7 @@ An abstraction of a file system?
 ## TODO
 
 Template for all HTML panels.
+
 
 
 
