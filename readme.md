@@ -57,7 +57,7 @@ Please note: Some functionality requires a [custom version of the Bytebattle bui
 }
 ```
 
-## Bytejam Overlay
+## Studio Mode - Bytejam TIC Runner (with and without overlay)
 
 This feature is managed by starting in `studio` mode.
 
@@ -74,30 +74,43 @@ flowchart LR
     _PS1[Proxy Server
         e.g. Alkama's
     ]
-    _PS1 --> |websocket| BJ
     _PS2[Proxy Server
         e.g. Alkama's
     ]
-    _PS2 .-> |websocket| BJ
-    _PS3[Proxy Server
-        e.g. Alkama's
-    ]
-    _PS3 .-> |websocket| BJ
     subgraph "ByteJam Overlay mode"
-    BJ <---> BJCP("admin panel
-        (on localhost:_port_)")
-    BJ(["ByteJammer
-        **studio**"]) --> BJMO1
-    BJMO1((ByteJam Overlay)) --> |when the decorated Lua file includes the
-        run signal then write|DF2{decorated Lua file 2}
-    BJMO1 --> |HTTP for web page|WSP["overlay web view
-        on a provided /url/route"]
-    BJMO1 --> |websocket updates the view with Lua code|WSP
-    BJ -..-> BJMO2((ByteJam Overlay))
+        subgraph "ByteJammer Studio"
+            BJ[ByteJammer]
+            
+            TRNO((TIC Runner))
+            TRO(("TIC Runner
+                with overlay"))
+        end
+
+        BJAP("admin panel
+            (on localhost:_port_)")
+
+        DF_1{decorated Lua file 1}
+        DF_2{decorated Lua file 2}
+        WSP["overlay web view
+            on a provided /url/route"]
     end
-    DF2 --> TIC80[Modified TIC-80]
-    WSP --> OBS[OBS browser view]
-    BJCP <--> WB[Web Browser]
+    _PS1 .-> |websocket| TRNO
+    _PS2 .-> |websocket| TRO
+    _WB[Web Browser]
+    _TIC80_1[Modified TIC-80]
+    _TIC80_2[Modified TIC-80]
+    _OBS[OBS browser view]
+
+    BJ <--> BJAP
+    TRNO --> |write|DF_1
+    TRO --> |when the decorated Lua file includes the
+        run signal then write|DF_2
+    TRO --> |HTTP for web page|WSP
+    TRO --> |websocket updates the view with Lua code|WSP
+    BJAP <--> _WB
+    DF_1 --> _TIC80_1
+    DF_2 --> _TIC80_2
+    WSP --> _OBS
 ```
 
 It will take the following arguments:
@@ -282,5 +295,6 @@ An abstraction of a file system?
 ## TODO
 
 Template for all HTML panels.
+
 
 
