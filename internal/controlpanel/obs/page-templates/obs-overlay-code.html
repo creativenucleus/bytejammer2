@@ -11,7 +11,6 @@
         <link href="/static/package/bootstrap-5.3.8-dist/css/bootstrap.min.css" rel="stylesheet">
         <link rel="stylesheet" href="/static/style/obs-overlay-bytejam.css" />
         <link rel="icon" type="image/x-icon" href="/static/media/favicon/favicon.ico">
-        <script src="/static/javascript/bytejammer.js"></script>
     </head>
     <body id="obs-overlay" class="code">
         <div class="container">
@@ -19,6 +18,7 @@
         </div>
 		<div id="stage">(...hidden...)</div>
 
+        <script src="/static/javascript/bytejammer.js"></script>
 		<script>
 			const wsPath = "{{ws_path}}"
 
@@ -51,7 +51,9 @@
 					setWsLocalStatusText('error', "Your browser does not support WebSockets");
 					// TODO: Bigger error?
 				} else {
-                    setUpdateableContent("<p>Websocket connection established. Waiting for updates...</p>");
+					setWsLocalStatusText('info', "Websocket to bytejammer.exe: Initialising...");
+
+					setUpdateableContent("<p>Websocket connection established. Waiting for updates...</p>");
 
 					conn.onerror = (error) => {
 					}

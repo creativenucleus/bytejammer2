@@ -11,7 +11,6 @@
 		<link href="/static/package/bootstrap-5.3.8-dist/css/bootstrap.min.css" rel="stylesheet">
 		<link rel="stylesheet" href="/static/style/default.css" />
 		<link rel="icon" type="image/x-icon" href="/static/media/favicon/favicon.ico">
-		<script src="/static/javascript/bytejammer.js"></script>
 	</head>
 	<body>
 		<nav class="navbar navbar-expand-md navbar-dark fixed-top" id="bj-navbar">
@@ -84,7 +83,7 @@
 		
 			<div class="card mt-5 mb-5">
 				<textarea id="log" style="display: none"></textarea>
-				<button onclick="ToggleLog()">toggle log</button>
+				<button onclick="toggleLog()">toggle log</button>
 			</div>
 
 			<!-- Toast -->
@@ -100,6 +99,7 @@
 		</div>
 
 		<script src="/static/package/bootstrap-5.3.8-dist/js/bootstrap.bundle.min.js"></script>
+		<script src="/static/javascript/bytejammer.js"></script>
 		<script>
 			const ws = new BjmrWebSocket()
 
@@ -109,54 +109,52 @@
 				connectToServer();
 			}
 
-			const ToggleLog = () => {
-				const log = document.getElementById("log");
-				log.style.display = log.style.display === "none" ? "block" : "none";
-			}
-
 			const connectToServer = () => {
 				const conn = ws.open("ws://" + document.location.host + "/ws/studio");
-				if(!conn) {                    
+                if(!conn) {
+					addToLog('error', "Your browser does not support WebSockets");
 					setWsLocalStatusText('error', "Your browser does not support WebSockets");
-					// TODO: Bigger error?
-				} else {
-					setWsLocalStatusText('info', "Initialising...");
+                    return;
+                }
 
-					conn.onerror = (error) => {
-						addToLog("Local websocket connection error");
+				addToLog('info', "Websocket to bytejammer.exe: Initialising...");
+
+				conn.onerror = (error) => {
+					addToLog("error", "Websocket to bytejammer.exe");
+				}
+
+				conn.onopen = () => {
+					addToLog("success", "Websocket connected to bytejammer.exe");
+					setWsLocalStatusText('success', "Open")
+				}
+				
+				conn.onclose = (event) => {
+					if (event.wasClean) {
+						addToLog("info", "Websocket to bytejammer.exe: Clean disconnect");
+						setWsLocalStatusText('info', `Closed: Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+					} else {
+						// e.g. server process killed or network down
+						// event.code is usually 1006 in this case
+						addToLog("error", "Websocket to bytejammer.exe: Unexpected disconnect");
+						setWsLocalStatusText('error', 'Closed: Unexpected disconnect');
+						elButtonReconnect.classList.remove("d-none");
 					}
+				}
 
-					conn.onopen = () => {
-						addToLog("Connected to local");
-						setWsLocalStatusText('success', "Open")
-					}
-					
-					conn.onclose = (event) => {
-						addToLog("Disconnected from local");
-						if (event.wasClean) {
-							setWsLocalStatusText('info', `Closed: Connection closed cleanly, code=${event.code} reason=${event.reason}`);
-						} else {
-							// e.g. server process killed or network down
-							// event.code is usually 1006 in this case
-							setWsLocalStatusText('error', 'Closed: Unexpected disconnect');
-							elButtonReconnect.classList.remove("d-none");
-						}
-					}
+				conn.onmessage = (evt) => {
+					const msg = JSON.parse(evt.data);
+					switch(msg.type) {
+						case "studio-server-status":
+							handleMsgServerStatus(msg.data);
+							break;
 
-					conn.onmessage = (evt) => {
-						const msg = JSON.parse(evt.data);
-						switch(msg.type) {
-							case "studio-server-status":
-								handleMsgServerStatus(msg.data);
-								break;
+						case "log":
+							console.log(msg);
+							handleMsgLog(msg.data);
+							break;
 
-							case "log":
-								handleMsgLog(msg.log);
-								break;
-
-							default:
-								console.error(`Unhandled message type ${msg.type}`);
-						}
+						default:
+							console.error(`Unhandled message type ${msg.type}`);
 					}
 				}
 			}
@@ -255,6 +253,10 @@
 
 			const handleMsgServerStatus = (data) => {
 				updateServerStatus(data);
+			}
+
+			const handleMsgLog = (data) => {
+				addToLog(data.level, data.message);
 			}
 
 			const showToast = (severity, title, message) => {

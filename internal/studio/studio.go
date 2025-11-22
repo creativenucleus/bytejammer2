@@ -112,7 +112,8 @@ func NewStudio(
 			return
 		}
 
-		logMessage := fmt.Sprintf("Started TIC runner for player '%s'", body.PlayerName)
+		responseMessage := fmt.Sprintf("TIC runner: started for player '%s'", body.PlayerName)
+		studio.sendLog("success", responseMessage)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(
@@ -121,7 +122,7 @@ func NewStudio(
 				Message string `json:"message"`
 			}{
 				Success: true,
-				Message: logMessage,
+				Message: responseMessage,
 			},
 		)
 
@@ -144,6 +145,9 @@ func NewStudio(
 			return
 		}
 
+		responseMessage := "TIC runner: stopped"
+		studio.sendLog("success", responseMessage)
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(
 			struct {
@@ -151,7 +155,7 @@ func NewStudio(
 				Message string `json:"message"`
 			}{
 				Success: true,
-				Message: "TIC runner stopped",
+				Message: responseMessage,
 			},
 		)
 
@@ -175,6 +179,14 @@ func NewStudio(
 			&onConnOpen,
 		),
 	)
+
+	// Chew through errors and send to the web panel
+	// (TODO: This may be problematic if there are too many errors or the socket is broken?)
+	go func() {
+		for err := range studio.chError {
+			studio.sendLog("error", err.Error())
+		}
+	}()
 
 	return &studio
 }
@@ -358,6 +370,18 @@ func (s *Studio) sendServerStatus() {
 		Type: message.MsgTypeStudioServerStatus,
 		Data: map[string]any{
 			"overlays": overlays,
+		},
+	}
+}
+
+// sendServerStatus sends the current server status to all connected websocket clients
+func (s *Studio) sendLog(level string, messageText string) {
+	// Send Log via websocket
+	s.chWSSend <- message.Msg{
+		Type: message.MsgTypeLog,
+		Data: map[string]any{
+			"level":   level,
+			"message": messageText,
 		},
 	}
 }

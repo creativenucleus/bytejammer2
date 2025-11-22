@@ -11,7 +11,6 @@
 		<link href="/static/package/bootstrap-5.3.8-dist/css/bootstrap.min.css" rel="stylesheet">
 		<link rel="stylesheet" href="/static/style/default.css" />
 		<link rel="icon" type="image/x-icon" href="/static/media/favicon/favicon.ico">
-		<script src="/static/javascript/bytejammer.js"></script>
 	</head>
 	<body>
 		<div class="container">
@@ -28,7 +27,7 @@
 
 			<textarea id="log" style="display: none"></textarea>
 
-			<button onclick="ToggleLog()">toggle log</button>
+			<button onclick="toggleLog()">toggle log</button>
 		</div>
 
 		<dialog id="submitDialog">
@@ -57,6 +56,7 @@
 		</div>
 
 		<script src="/static/package/bootstrap-5.3.8-dist/js/bootstrap.bundle.min.js"></script>
+        <script src="/static/javascript/bytejammer.js"></script>
 		<script>
 			const ws = new BjmrWebSocket()
 			const submitDialog = document.getElementById("submitDialog");
@@ -80,46 +80,48 @@
 
 			window.onload = () => {
 				const conn = ws.open("ws://" + document.location.host + "/ws-kiosk");
-				if(!conn) {                    
+                if(!conn) {
+					addToLog('error', "Your browser does not support WebSockets");
 					setWsLocalStatusText('error', "Your browser does not support WebSockets");
-					// TODO: Bigger error?
-				} else {
-					setWsLocalStatusText('info', "Initialising...");
+                    return;
+                }
 
-					conn.onerror = (error) => {
-						addToLog("Local websocket connection error");
+				addToLog('info', "Websocket to bytejammer.exe: Initialising...");
+
+				conn.onerror = (error) => {
+					addToLog("error", "Websocket to bytejammer.exe");
+				}
+
+				conn.onopen = () => {
+					addToLog("success", "Websocket to bytejammer.exe: connected");
+					setWsLocalStatusText('success', "Open")
+				}
+				
+				conn.onclose = (event) => {
+					if (event.wasClean) {
+						addToLog("info", "Websocket to bytejammer.exe: Clean disconnect");
+						setWsLocalStatusText('info', `Closed: Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+					} else {
+						// e.g. server process killed or network down
+						// event.code is usually 1006 in this case
+						addToLog("error", "Websocket to bytejammer.exe: Unexpected disconnect");
+						setWsLocalStatusText('error', 'Closed: Unexpected disconnect');
 					}
+				}
 
-					conn.onopen = () => {
-						addToLog("Connected to local");
-						setWsLocalStatusText('success', "Open")
-					}
-					
-					conn.onclose = (event) => {
-						addToLog("Disconnected from local");
-						if (event.wasClean) {
-							setWsLocalStatusText('info', `Closed: Connection closed cleanly, code=${event.code} reason=${event.reason}`);
-						} else {
-							// e.g. server process killed or network down
-							// event.code is usually 1006 in this case
-							setWsLocalStatusText('error', 'Closed: Unexpected disconnect');
-						}
-					}
+				conn.onmessage = (evt) => {
+					const msg = JSON.parse(evt.data);
+					switch(msg.type) {
+						case "server-status":
+							handleMsgServerStatus(msg.data);
+							break;
 
-					conn.onmessage = (evt) => {
-						const msg = JSON.parse(evt.data);
-						switch(msg.type) {
-							case "server-status":
-								handleMsgServerStatus(msg.data);
-								break;
+						case "log":
+							handleMsgLog(msg.log);
+							break;
 
-							case "log":
-								handleMsgLog(msg.log);
-								break;
-
-							default:
-								console.error(`Unhandled message type ${msg.type}`);
-						}
+						default:
+							console.error(`Unhandled message type ${msg.type}`);
 					}
 				}
 			}
@@ -162,11 +164,6 @@
 					ws.sendMsg("kiosk-new-player", {});
 				}
 				return false;
-			}
-
-			const ToggleLog = () => {
-				const log = document.getElementById("log");
-				log.style.display = log.style.display === "none" ? "block" : "none";
 			}
 		</script>
 	</body>
