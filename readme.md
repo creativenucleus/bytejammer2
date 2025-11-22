@@ -86,6 +86,8 @@ flowchart LR
 
 (Previous versions of this allowed specification of playlist files, so that should be brought across in future).
 
+See [Lovebyte 2025 - Mystery DJ Megamix](https://www.youtube.com/watch?v=C3N6oyN39gc) for an example of the jukebox mode running.
+
 ## **Studio** mode - Bytejam TIC Runner
 
 This feature is managed by starting in `studio` mode.
@@ -316,6 +318,7 @@ An abstraction of a file system?
 ## TODO
 
 Template for all HTML panels.
+
 
 
 
