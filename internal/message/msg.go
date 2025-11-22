@@ -1,5 +1,7 @@
 package message
 
+import "github.com/google/uuid"
+
 type MsgType string
 
 // log is a log message that can be propagated
@@ -29,12 +31,18 @@ const MsgTypeStudioServerStatus = MsgType("studio-server-status")
 //	RunningCount uint `json:"running_count"`
 //}
 
-// A request from the kiosk to make a snapshot
-const MsgTypeStudioStartTicWithOverlay = MsgType("start-tic-with-overlay")
+//const MsgTypeStartTicRunner = MsgType("start-tic-runner")
 
-type MsgDataStartTicWithOverlay struct {
+type MsgDataStartTicRunner struct {
 	ListenToUrl string `json:"listenToUrl"`
 	PlayerName  string `json:"playerName"`
+	ObsOverlay  string `json:"obsOverlay"` // "", "none", "code"
+}
+
+//const MsgTypeStopTicRunner = MsgType("stop-tic-runner")
+
+type MsgDataStopTicRunner struct {
+	ID uuid.UUID `json:"id"`
 }
 
 // Msg is the base struct for representing some information that is passed around

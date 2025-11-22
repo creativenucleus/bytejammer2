@@ -16,6 +16,7 @@ import (
 	"github.com/creativenucleus/bytejammer2/internal/webserver"
 	"github.com/creativenucleus/bytejammer2/internal/websocket"
 	"github.com/creativenucleus/bytejammer2/internal/webstatic"
+	"github.com/google/uuid"
 	"github.com/gosimple/slug"
 	"github.com/tyler-sommer/stick"
 )
@@ -23,7 +24,8 @@ import (
 //go:embed page-templates/studio-index.html
 var studioIndexHtml []byte
 
-type ticSocketWatcher struct {
+type ticRunner struct {
+	id             uuid.UUID
 	listenToURL    string
 	playerName     string
 	slug           string
@@ -32,9 +34,9 @@ type ticSocketWatcher struct {
 }
 
 type Studio struct {
-	server            *webserver.Webserver
-	hostPart          string
-	ticSocketWatchers []ticSocketWatcher
+	server     *webserver.Webserver
+	hostPart   string
+	ticRunners []ticRunner
 	// Channel to listen for user exit requests
 	chUserExitRequest <-chan bool
 	// Send errors to the on this channel (we can log them, or send them to the web panel)
@@ -78,8 +80,8 @@ func NewStudio(
 		}
 	})
 
-	router.HandleFunc("/action/launch-tic-with-overlay.json", func(w http.ResponseWriter, r *http.Request) {
-		var body message.MsgDataStartTicWithOverlay
+	router.HandleFunc("/action/start-tic-runner.json", func(w http.ResponseWriter, r *http.Request) {
+		var body message.MsgDataStartTicRunner
 		err := json.NewDecoder(r.Body).Decode(&body)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -87,14 +89,30 @@ func NewStudio(
 			return
 		}
 
-		_, err = studio.addTicSocketWatcher(body.ListenToUrl, body.PlayerName)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, `{"error":"could not add TIC socket watcher: %s"}`, err)
+		switch body.ObsOverlay {
+		case "none":
+			_, err = studio.addTicRunner(body.ListenToUrl, body.PlayerName)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, `{"error":"could not add TIC runner: %s"}`, err)
+				return
+			}
+
+		case "code":
+			_, err = studio.addTicRunnerWithOverlay(body.ListenToUrl, body.PlayerName)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, `{"error":"could not add TIC runner with overlay: %s"}`, err)
+				return
+			}
+
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, `{"error":"unknown obsOverlay option: %s"}`, body.ObsOverlay)
 			return
 		}
 
-		logMessage := fmt.Sprintf("Started TIC socket watcher for player '%s'", body.PlayerName)
+		logMessage := fmt.Sprintf("Started TIC runner for player '%s'", body.PlayerName)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(
@@ -104,6 +122,36 @@ func NewStudio(
 			}{
 				Success: true,
 				Message: logMessage,
+			},
+		)
+
+		studio.sendServerStatus()
+	}).Methods("POST")
+
+	router.HandleFunc("/action/stop-tic-runner.json", func(w http.ResponseWriter, r *http.Request) {
+		var body message.MsgDataStopTicRunner
+		err := json.NewDecoder(r.Body).Decode(&body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, `{"error":"could not decode request: %s"}`, err)
+			return
+		}
+
+		err = studio.stopTicRunner(body.ID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, `{"error":"could not stop TIC runner: %s"}`, err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(
+			struct {
+				Success bool   `json:"success"`
+				Message string `json:"message"`
+			}{
+				Success: true,
+				Message: "TIC runner stopped",
 			},
 		)
 
@@ -135,13 +183,71 @@ func (s *Studio) Run() error {
 	return s.server.Run()
 }
 
-// addTicSocketWatcher adds a new TIC socket watcher
+// addTicRunner adds a new socket watcher, outputting to a TIC
+// listenToURL is the URL to listen to TIC data from
+// playerName is the name of the player to associate with this watcher
+// The playerName will be used to create a file for the TIC to watch
+// Returns a ticRunner
+func (s *Studio) addTicRunner(listenToURL string, playerName string) (*ticRunner, error) {
+	slug := slug.Make(fmt.Sprintf("tic-%s", playerName)) // TODO: make unique!
+	if slug == "" {
+		return nil, fmt.Errorf("could not create slug from player name: %s", playerName)
+	}
+
+	fileDir := filepath.Join(config.CONFIG.WorkDir, "bytejam")
+	err := files.EnsurePathExists(fileDir, 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	filePath := filepath.Join(fileDir, slug+".ticcode")
+
+	// TODO: Ensure we aren't duplicating slugs
+
+	chReceived := make(chan []byte)
+
+	// TODO: this is all quite dicey
+
+	wsURL, err := url.Parse(listenToURL)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		err = websocket.Tic80SocketListener(*wsURL, chReceived)
+		if err != nil {
+			fmt.Printf("Error running socket echo: %s\n", err)
+		}
+	}()
+
+	go func() {
+		err = TicRunner(s.chUserExitRequest, chReceived, filePath)
+		if err != nil {
+			fmt.Printf("Error running overlay: %s\n", err)
+		}
+	}()
+
+	ticRunner := ticRunner{
+		id:          uuid.New(),
+		listenToURL: listenToURL,
+		playerName:  playerName,
+		slug:        slug,
+		filePath:    filePath,
+	}
+
+	// Fake for now
+	s.ticRunners = append(s.ticRunners, ticRunner)
+
+	return &ticRunner, nil
+}
+
+// addTicRunnerWithOverlay adds a new socket watcher, outputting to overlay and a TIC
 // listenToURL is the URL to listen to TIC data from
 // playerName is the name of the player to associate with this watcher
 // The playerName will be used to launch a URL, and a file for the TIC to watch
-// Returns the file slug
-func (s *Studio) addTicSocketWatcher(listenToURL string, playerName string) (*ticSocketWatcher, error) {
-	slug := slug.Make(fmt.Sprintf("tic-overlay-%s", playerName)) // TODO: make unique!
+// Returns a ticRunner
+func (s *Studio) addTicRunnerWithOverlay(listenToURL string, playerName string) (*ticRunner, error) {
+	slug := slug.Make(fmt.Sprintf("tic-%s", playerName)) // TODO: make unique!
 	if slug == "" {
 		return nil, fmt.Errorf("could not create slug from player name: %s", playerName)
 	}
@@ -182,13 +288,13 @@ func (s *Studio) addTicSocketWatcher(listenToURL string, playerName string) (*ti
 	}()
 
 	go func() {
-		err = OverlayRunner(s.chUserExitRequest, chReceived, codeOverlayPanel, filePath)
+		err = TicOverlayRunner(s.chUserExitRequest, chReceived, codeOverlayPanel, filePath)
 		if err != nil {
 			fmt.Printf("Error running overlay: %s\n", err)
 		}
 	}()
 
-	socketWatcher := ticSocketWatcher{
+	ticRunner := ticRunner{
 		listenToURL:    listenToURL,
 		playerName:     playerName,
 		slug:           slug,
@@ -197,31 +303,52 @@ func (s *Studio) addTicSocketWatcher(listenToURL string, playerName string) (*ti
 	}
 
 	// Fake for now
-	s.ticSocketWatchers = append(s.ticSocketWatchers, socketWatcher)
+	s.ticRunners = append(s.ticRunners, ticRunner)
 
-	return &socketWatcher, nil
+	return &ticRunner, nil
+}
+
+func (s *Studio) stopTicRunner(id uuid.UUID) error {
+	newRunners := []ticRunner{}
+	for _, runner := range s.ticRunners {
+		if runner.id == id {
+			// TODO: actually stop the runner!
+		} else {
+			// It doesn't match our ID, so we keep this one
+			newRunners = append(newRunners, runner)
+		}
+	}
+	s.ticRunners = newRunners
+	return nil
 }
 
 // sendServerStatus sends the current server status to all connected websocket clients
 func (s *Studio) sendServerStatus() {
 	type statusOverlay struct {
-		PlayerName     string `json:"playerName"`
-		ListenToURL    string `json:"listenToURL"`
-		OverlayURL     string `json:"overlayURL"`
-		OverlayURLPath string `json:"overlayURLPath"`
-		FilePath       string `json:"filePath"`
+		ID             uuid.UUID `json:"id"`
+		PlayerName     string    `json:"playerName"`
+		ListenToURL    string    `json:"listenToURL"`
+		OverlayURL     string    `json:"overlayURL"`
+		OverlayURLPath string    `json:"overlayURLPath"`
+		FilePath       string    `json:"filePath"`
 	}
 
 	var overlays []statusOverlay
-	for _, watcher := range s.ticSocketWatchers {
-		// TODO: raise error
-		fullFilePath, _ := filepath.Abs(watcher.filePath)
+	for _, ticRunner := range s.ticRunners {
+		// TODO: raise if there's an error
+		fullFilePath, _ := filepath.Abs(ticRunner.filePath)
+
+		overlayURL := ""
+		if ticRunner.overlayURLPath != "" {
+			overlayURL = s.hostPart + ticRunner.overlayURLPath
+		}
 
 		overlays = append(overlays, statusOverlay{
-			PlayerName:     watcher.playerName,
-			ListenToURL:    watcher.listenToURL,
-			OverlayURL:     s.hostPart + watcher.overlayURLPath,
-			OverlayURLPath: watcher.overlayURLPath,
+			ID:             ticRunner.id,
+			PlayerName:     ticRunner.playerName,
+			ListenToURL:    ticRunner.listenToURL,
+			OverlayURL:     overlayURL,
+			OverlayURLPath: ticRunner.overlayURLPath,
 			FilePath:       fullFilePath,
 		})
 	}

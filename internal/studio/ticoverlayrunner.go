@@ -15,7 +15,7 @@ import (
 	"github.com/creativenucleus/bytejammer2/internal/tic"
 )
 
-func OverlayRunner(
+func TicOverlayRunner(
 	chUserExitRequest <-chan bool,
 	chDataUpdate <-chan []byte,
 	obsCodeOverlayPanel *obs.CodeOverlayPanel,

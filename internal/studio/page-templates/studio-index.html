@@ -25,18 +25,18 @@
 		</nav>
 
 		<main class="container" role="container">
-			<div class="card">
+			<div class="card mt-5 mb-5">
 				<div class="card-header">
-					<h2 class="card-title">Action - Launch TIC-80 with OBS Code Overlay</h2>
+					<h2 class="card-title">Action - Launch TIC Runner</h2>
 				</div>
 
 				<div class="card-body">
-					<form id="form-launch-tic-with-overlay">
-						<div class="row mb-3">
+					<form id="form-start-tic-runner" class="mb-2">
+						<div class="row">
 							<label for="listen-to-url" class="col-sm-2 col-form-label">Websocket URL</label>
 							<div class="col-sm-10">
 								<input type="url" class="form-control" id="listen-to-url" aria-describedby="help-listen-url">
-								<div id="help-listen-url" class="form-text">e.g. ws://drone.alkama.com:9000/bytejammer/testuser</div>
+								<div id="help-listen-url" class="form-text">i.e. ws://drone.alkama.com:9000/room/playername</div>
 							</div>
 						</div> 
 						<div class="row mb-3">
@@ -47,19 +47,32 @@
 							</div>
 						</div>
 						<div class="row mb-3">
+							<label for="obs-overlay" class="col-sm-2 col-form-label">OBS Overlay</label>
+							<div class="col-sm-10">
+								<select class="form-select" id="obs-overlay" aria-describedby="help-obs-overlay">
+									<option selected value="">- choose -</option>
+									<option value="none">None</option>
+									<option value="code">Code</option>
+								</select>
+								<div id="help-obs-overlay" class="form-text">Selecting 'Code' launches an overlay</div>
+							</div>
+						</div>
+						<div class="row mb-3">
 							<div class="col-sm-10 offset-sm-2">
 								<button class="btn btn-primary">Launch</button>
 							</div>
 						</div>
 					</form>
 
-					<table class="table table-sm table-striped table-hover align-middle">
+					<hr>
+
+					<table class="table table-sm table-striped table-hover align-middle mt-2">
 						<thead>
 							<tr>
 								<th scope="col">Player</th>
-								<th scope="col">Listen To URL</th>
-								<th scope="col">Overlay URL</th>
-								<th scope="col">File path for TIC</th>
+								<th scope="col">Listen To URL<br>(source websocket)</th>
+								<th scope="col">Overlay URL<br>(set for OBS browser location)</th>
+								<th scope="col">File path for TIC<br>(use for --codeimport)</th>
 								<th scope="col">#</th>
 							</tr>
 						</thead>
@@ -69,7 +82,7 @@
 				</div>
 			</div>
 		
-			<div class="card mt-2">
+			<div class="card mt-5 mb-5">
 				<textarea id="log" style="display: none"></textarea>
 				<button onclick="ToggleLog()">toggle log</button>
 			</div>
@@ -177,22 +190,24 @@
 				connectToServer();
 			});
 
-			const form = document.getElementById("form-launch-tic-with-overlay");
+			const form = document.getElementById("form-start-tic-runner");
 			form.addEventListener("submit", (event) => {
 				event.preventDefault();
 
 				const listenToUrl = document.getElementById("listen-to-url").value
 				const playerName = document.getElementById("player-name").value
-				if(!listenToUrl || !playerName){
+				const obsOverlay = document.getElementById("obs-overlay").value
+				if(!listenToUrl || !playerName || !obsOverlay){
 					alert("Please fill in all fields");
 					return false;
 				}
 
 				(async () => {
-					const fnTitle = "Launch TIC-80 with OBS Overlay";
-					serverPost('launch-tic-with-overlay', {
+					const fnTitle = "Start TIC-80 Runner";
+					serverPost('start-tic-runner', {
 						listenToUrl: listenToUrl,
-						playerName: playerName
+						playerName: playerName,
+						obsOverlay: obsOverlay
 					}).then((result) => {
 						form.reset();
 						showToast('success', fnTitle, result.message);
@@ -200,6 +215,42 @@
 						showToast('error', fnTitle, error.message);
 					});
 				})();
+			});
+
+			// Live event listener (for dynamically created elements)
+			document.addEventListener("click", (event) => {
+				const element = event.target;
+				if(!element) {
+					return;
+				}
+
+				const attrClickAction = element.getAttributeNode("data-action-click");
+				if (!attrClickAction) {
+					return;
+				}
+
+				event.preventDefault();
+				switch(attrClickAction.value) {
+					case "stop-tic-runner":
+						const id = element.getAttributeNode("data-id").value;
+
+						(async () => {
+							const fnTitle = "Stop TIC-80 Runner";
+							serverPost('stop-tic-runner', {
+								id: id
+							}).then((result) => {
+								form.reset();
+								showToast('success', fnTitle, result.message);
+							}).catch((error) => {
+								showToast('error', fnTitle, error.message);
+							});
+						})();
+
+						break;
+
+					default:
+						console.error(`Unhandled click action ${attrClickAction.value}`);
+				}
 			});
 
 			const handleMsgServerStatus = (data) => {
@@ -243,7 +294,7 @@
 							<td>${overlay.listenToURL}</td>
 							<td><a href="${overlay.overlayURL}" target="_blank">${overlay.overlayURLPath}</a></td>
 							<td>${overlay.filePath}</td>
-							<td><button class="btn btn-danger">Stop</button></td>
+							<td><button class="btn btn-danger" data-action-click="stop-tic-runner" data-id="${overlay.id}">Stop</button></td>
 						</tr>`;
 					});
 				}
