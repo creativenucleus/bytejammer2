@@ -24,68 +24,110 @@
 		</nav>
 
 		<main class="container" role="container">
-			<div class="card mt-5 mb-5">
-				<div class="card-header">
-					<h2 class="card-title">Action - Launch TIC Runner</h2>
+			<ul class="nav nav-tabs" id="myTab" role="tablist">
+				<li class="nav-item" role="presentation">
+					<button class="nav-link active" id="tab-info" data-bs-toggle="tab" data-bs-target="#tab-pane-info" type="button" role="tab" aria-controls="home-tab-pane" aria-selected="true">Info</button>
+				</li>
+				<li class="nav-item" role="presentation">
+					<button class="nav-link" id="tab-bytejam" data-bs-toggle="tab" data-bs-target="#tab-pane-bytejam" type="button" role="tab" aria-controls="profile-tab-pane" aria-selected="false">ByteJam</button>
+				</li>
+				<li class="nav-item" role="presentation">
+					<button class="nav-link" id="tab-bytewall" data-bs-toggle="tab" data-bs-target="#tab-pane-bytewall" type="button" role="tab" aria-controls="profile-tab-pane" aria-selected="false">ByteWall</button>
+				</li>
+				<li class="nav-item" role="presentation">
+					<button class="nav-link" id="tab-log" data-bs-toggle="tab" data-bs-target="#tab-pane-log" type="button" role="tab" aria-controls="profile-tab-pane" aria-selected="false">Logs</button>
+				</li>
+			</ul>
+			<div class="tab-content pt-3 pb-3" id="myTabContent">
+				<div class="tab-pane show active" id="tab-pane-info" role="tabpanel" aria-labelledby="tab-info" tabindex="0">
+					<h1>ByteJammer Studio</h1>
+
+					<p class="lead">
+						Welcome to ByteJammer Studio! This interface allows you to manage TIC-80 instances for ByteJams
+					</p>
 				</div>
-
-				<div class="card-body">
-					<form id="form-start-tic-runner" class="mb-2">
-						<div class="row">
-							<label for="listen-to-url" class="col-sm-2 col-form-label">Websocket URL</label>
-							<div class="col-sm-10">
-								<input type="url" class="form-control" id="listen-to-url" aria-describedby="help-listen-url">
-								<div id="help-listen-url" class="form-text">i.e. ws://drone.alkama.com:9000/room/playername</div>
-							</div>
-						</div> 
-						<div class="row mb-3">
-							<label for="player-name" class="col-sm-2 col-form-label">Player Name</label>
-							<div class="col-sm-10">
-								<input type="text" class="form-control" id="player-name" aria-describedby="help-player-name">
-								<div id="help-player-name" class="form-text">e.g. jtruk (spaces and non-alphanumeric characters will be removed to make a URL)</div>
-							</div>
+				<div class="tab-pane" id="tab-pane-bytejam" role="tabpanel" aria-labelledby="tab-bytejam" tabindex="0">
+					<div class="card">
+						<div class="card-header">
+							<h2 class="card-title">Action - Launch a TIC Runner</h2>
 						</div>
-						<div class="row mb-3">
-							<label for="obs-overlay" class="col-sm-2 col-form-label">OBS Overlay</label>
-							<div class="col-sm-10">
-								<select class="form-select" id="obs-overlay" aria-describedby="help-obs-overlay">
-									<option selected value="">- choose -</option>
-									<option value="none">None</option>
-									<option value="code">Code</option>
-								</select>
-								<div id="help-obs-overlay" class="form-text">Selecting 'Code' launches an overlay</div>
-							</div>
-						</div>
-						<div class="row mb-3">
-							<div class="col-sm-10 offset-sm-2">
-								<button class="btn btn-primary">Launch</button>
-							</div>
-						</div>
-					</form>
 
-					<hr>
+						<div class="card-body">
+							<form id="form-start-tic-runner" class="mb-2">
+								<div class="row">
+									<label for="listen-to-url" class="col-sm-2 col-form-label">Websocket URL</label>
+									<div class="col-sm-10">
+										<input type="url" class="form-control" id="listen-to-url" aria-describedby="help-listen-url">
+										<div id="help-listen-url" class="form-text">i.e. ws://drone.alkama.com:9000/room/playername</div>
+									</div>
+								</div> 
+								<div class="row mb-3">
+									<label for="player-name" class="col-sm-2 col-form-label">Player Name</label>
+									<div class="col-sm-10">
+										<input type="text" class="form-control" id="player-name" aria-describedby="help-player-name">
+										<div id="help-player-name" class="form-text">e.g. jtruk (spaces and non-alphanumeric characters will be removed to make a URL)</div>
+									</div>
+								</div>
+								<div class="row mb-3">
+									<label for="obs-overlay" class="col-sm-2 col-form-label">OBS Overlay</label>
+									<div class="col-sm-10">
+										<select class="form-select" id="obs-overlay" aria-describedby="help-obs-overlay">
+											<option selected value="">- choose -</option>
+											<option value="none">None</option>
+											<option value="code">Code</option>
+										</select>
+										<div id="help-obs-overlay" class="form-text">Selecting 'Code' launches an overlay</div>
+									</div>
+								</div>
+								<div class="row mb-3">
+									<label for="manage-tic" class="col-sm-2 col-form-label">Manage TIC</label>
+									<div class="col-sm-10">
+										<select class="form-select" id="manage-tic" aria-describedby="help-manage-tic">
+											<option selected value="">- choose -</option>
+											<option value="yes">Yes</option>
+											<option value="no">No</option>
+										</select>
+										<div id="help-manage-tic" class="form-text">'Yes' will instruct ByteJammer to launch a TIC-80, watching the decorated Lua file</div>
+									</div>
+								</div>
+								<div class="row mb-3">
+									<div class="col-sm-10 offset-sm-2">
+										<button class="btn btn-primary">Launch</button>
+									</div>
+								</div>
+							</form>
 
-					<table class="table table-sm table-striped table-hover align-middle mt-2">
-						<thead>
-							<tr>
-								<th scope="col">Player</th>
-								<th scope="col">Listen To URL<br>(source websocket)</th>
-								<th scope="col">Overlay URL<br>(set for OBS browser location)</th>
-								<th scope="col">File path for TIC<br>(use for --codeimport)</th>
-								<th scope="col">#</th>
-							</tr>
-						</thead>
-						<tbody class="table-group-divider" id="table-overlays-body">
-						</tbody>
-					</table>
+							<hr>
+
+							<table class="table table-sm table-striped table-hover align-middle mt-2">
+								<thead>
+									<tr>
+										<th scope="col">Player</th>
+										<th scope="col">Listen To URL<br>(source websocket)</th>
+										<th scope="col">Overlay URL<br>(set for OBS browser location)</th>
+										<th scope="col">File path for TIC<br>(use for --codeimport)</th>
+										<th scope="col">Managed TIC<br></th>
+										<th scope="col">#</th>
+									</tr>
+								</thead>
+								<tbody class="table-group-divider" id="table-tic-runners-body">
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+				<div class="tab-pane" id="tab-pane-bytewall" role="tabpanel" aria-labelledby="tab-bytewall" tabindex="0">
+					<p class="lead">ByteWall management</p>
+
+					<p>Coming soon. Maybe!</p>
+				</div>
+				<div class="tab-pane" id="tab-pane-log" role="tabpanel" aria-labelledby="tab-log" tabindex="0">
+					<div class="card">
+						<textarea id="log"></textarea>
+					</div>
 				</div>
 			</div>
 		
-			<div class="card mt-5 mb-5">
-				<textarea id="log" style="display: none"></textarea>
-				<button onclick="toggleLog()">toggle log</button>
-			</div>
-
 			<!-- Toast -->
 			<div class="toast-container position-fixed bottom-0 end-0 p-3">
 				<div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
@@ -206,7 +248,8 @@
 				const listenToUrl = document.getElementById("listen-to-url").value
 				const playerName = document.getElementById("player-name").value
 				const obsOverlay = document.getElementById("obs-overlay").value
-				if(!listenToUrl || !playerName || !obsOverlay){
+				const manageTic = document.getElementById("manage-tic").value
+				if(!listenToUrl || !playerName || !obsOverlay || !manageTic) {
 					alert("Please fill in all fields");
 					return false;
 				}
@@ -216,7 +259,8 @@
 					serverPost('start-tic-runner', {
 						listenToUrl: listenToUrl,
 						playerName: playerName,
-						obsOverlay: obsOverlay
+						obsOverlay: obsOverlay,
+						manageTic: manageTic
 					}).then((result) => {
 						form.reset();
 						showToast('success', fnTitle, result.message);
@@ -299,29 +343,39 @@
 			}
 
 			const updateServerStatus = (serverStatus) => {
-				const elTableBody = document.getElementById('table-overlays-body')
+				const elTableBody = document.getElementById('table-tic-runners-body')
 
 				let innerHtml = "";
-				if(!serverStatus || !serverStatus.overlays || !serverStatus.overlays.length) {
+				if(!serverStatus || !serverStatus['tic-runners'] || !serverStatus['tic-runners'].length) {
 					innerHtml += `
 						<tr>
 							<td colspan="5" class="text-center">- (None Running) -</td>
 						</tr>`;
 				} else {
-					serverStatus.overlays.forEach(overlay => {
+					serverStatus['tic-runners'].forEach(overlay => {
 						overlayButtonHTML = "";
 						if(overlay.overlayURL) {
 							overlayButtonHTML = `<button class="btn btn-primary" data-action-click="copy-to-clipboard" data-value-name="Overlay URL" data-text="${overlay.overlayURL}">Copy Overlay URL</button>`;
 						}
 						filepathButtonHTML = `<button class="btn btn-primary" data-action-click="copy-to-clipboard" data-value-name="File Path" data-text="${overlay.filePath}">Copy Filepath</button>`;
 						
+						managedTicHTML = "";
+						if(overlay.isManagedTic) {
+							managedTicHTML += ` <span class="badge bg-success">Managed</span>`;
+						} else {
+							managedTicHTML += ` <span class="badge bg-secondary">Unmanaged</span>`;
+						}
+
 						innerHtml += 
 							`<tr>` +
 								`<td>${overlay.playerName}</td>` +
 								`<td>${overlay.listenToURL}</td>` +
 								`<td>${overlayButtonHTML}</td>` +
 								`<td>${filepathButtonHTML}</td>` +
-								`<td><button class="btn btn-danger" data-action-click="stop-tic-runner" data-id="${overlay.id}">Stop</button></td>` +
+								`<td>${managedTicHTML}</td>` +
+// Stop is disabled for now
+//								`<td><button class="btn btn-danger" data-action-click="stop-tic-runner" data-id="${overlay.id}">Stop</button></td>` +
+								`<td></td>` +
 							`</tr>`;
 					});
 				}

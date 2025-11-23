@@ -13,6 +13,7 @@ import (
 	"github.com/creativenucleus/bytejammer2/internal/controlpanel/obs"
 	"github.com/creativenucleus/bytejammer2/internal/files"
 	"github.com/creativenucleus/bytejammer2/internal/message"
+	"github.com/creativenucleus/bytejammer2/internal/tic"
 	"github.com/creativenucleus/bytejammer2/internal/webserver"
 	"github.com/creativenucleus/bytejammer2/internal/websocket"
 	"github.com/creativenucleus/bytejammer2/internal/webstatic"
@@ -31,6 +32,7 @@ type ticRunner struct {
 	slug           string
 	filePath       string
 	overlayURLPath string
+	isManagedTic   bool // We may wish this to do more in future
 }
 
 type Studio struct {
@@ -190,15 +192,16 @@ func (s *Studio) handleStartTicRunner(r *http.Request) (int, string, error) {
 		}
 	}
 
+	var newRunner *ticRunner
 	switch body.ObsOverlay {
 	case "none":
-		_, err = s.addTicRunner(slug, body.ListenToUrl, body.PlayerName)
+		newRunner, err = s.addTicRunner(slug, body.ListenToUrl, body.PlayerName)
 		if err != nil {
 			return http.StatusInternalServerError, "", fmt.Errorf("could not add TIC runner: %s", err)
 		}
 
 	case "code":
-		_, err = s.addTicRunnerWithOverlay(slug, body.ListenToUrl, body.PlayerName)
+		newRunner, err = s.addTicRunnerWithOverlay(slug, body.ListenToUrl, body.PlayerName)
 		if err != nil {
 			return http.StatusInternalServerError, "", fmt.Errorf("could not add TIC runner with overlay: %s", err)
 		}
@@ -206,6 +209,31 @@ func (s *Studio) handleStartTicRunner(r *http.Request) (int, string, error) {
 	default:
 		return http.StatusBadRequest, "", fmt.Errorf("unknown obsOverlay option: %s", body.ObsOverlay)
 	}
+
+	switch body.ManageTic {
+	case "yes":
+		ticManager, err := tic.NewTicManager(&newRunner.filePath, nil)
+		if err != nil {
+			return http.StatusInternalServerError, "", err
+		}
+
+		err = ticManager.StartMachine("tic-80-server")
+		if err != nil {
+			return http.StatusInternalServerError, "", err
+		}
+		newRunner.isManagedTic = true
+
+	case "no":
+		// Do nothing
+
+	default:
+		return http.StatusBadRequest, "", fmt.Errorf("unknown manageTic option: %s", body.ManageTic)
+	}
+
+	// Append to our list of runners
+	// Maybe need a lock around this (and much else besides!)
+	// (and some kind of rewind if anything above fails?)
+	s.ticRunners = append(s.ticRunners, *newRunner)
 
 	return http.StatusOK, fmt.Sprintf("TIC runner started for player: '%s'", body.PlayerName), nil
 }
@@ -249,18 +277,13 @@ func (s *Studio) addTicRunner(slug string, listenToURL string, playerName string
 		}
 	}()
 
-	ticRunner := ticRunner{
+	return &ticRunner{
 		id:          uuid.New(),
 		listenToURL: listenToURL,
 		playerName:  playerName,
 		slug:        slug,
 		filePath:    filePath,
-	}
-
-	// Fake for now
-	s.ticRunners = append(s.ticRunners, ticRunner)
-
-	return &ticRunner, nil
+	}, nil
 }
 
 // addTicRunnerWithOverlay adds a new socket watcher, outputting to overlay and a TIC
@@ -311,18 +334,13 @@ func (s *Studio) addTicRunnerWithOverlay(slug string, listenToURL string, player
 		}
 	}()
 
-	ticRunner := ticRunner{
+	return &ticRunner{
 		listenToURL:    listenToURL,
 		playerName:     playerName,
 		slug:           slug,
 		filePath:       filePath,
 		overlayURLPath: overlayURLPath,
-	}
-
-	// Fake for now
-	s.ticRunners = append(s.ticRunners, ticRunner)
-
-	return &ticRunner, nil
+	}, nil
 }
 
 func (s *Studio) stopTicRunner(id uuid.UUID) error {
@@ -341,16 +359,17 @@ func (s *Studio) stopTicRunner(id uuid.UUID) error {
 
 // sendServerStatus sends the current server status to all connected websocket clients
 func (s *Studio) sendServerStatus() {
-	type statusOverlay struct {
+	type statusTicRunner struct {
 		ID             uuid.UUID `json:"id"`
 		PlayerName     string    `json:"playerName"`
 		ListenToURL    string    `json:"listenToURL"`
 		OverlayURL     string    `json:"overlayURL"`
 		OverlayURLPath string    `json:"overlayURLPath"`
 		FilePath       string    `json:"filePath"`
+		IsManagedTic   bool      `json:"isManagedTic"`
 	}
 
-	var overlays []statusOverlay
+	var statusTicRunners []statusTicRunner
 	for _, ticRunner := range s.ticRunners {
 		// TODO: raise if there's an error
 		fullFilePath, _ := filepath.Abs(ticRunner.filePath)
@@ -360,13 +379,14 @@ func (s *Studio) sendServerStatus() {
 			overlayURL = s.hostPart + ticRunner.overlayURLPath
 		}
 
-		overlays = append(overlays, statusOverlay{
+		statusTicRunners = append(statusTicRunners, statusTicRunner{
 			ID:             ticRunner.id,
 			PlayerName:     ticRunner.playerName,
 			ListenToURL:    ticRunner.listenToURL,
 			OverlayURL:     overlayURL,
 			OverlayURLPath: ticRunner.overlayURLPath,
 			FilePath:       fullFilePath,
+			IsManagedTic:   ticRunner.isManagedTic,
 		})
 	}
 
@@ -374,7 +394,7 @@ func (s *Studio) sendServerStatus() {
 	s.chWSSend <- message.Msg{
 		Type: message.MsgTypeStudioServerStatus,
 		Data: map[string]any{
-			"overlays": overlays,
+			"tic-runners": statusTicRunners,
 		},
 	}
 }

@@ -36,7 +36,8 @@ const MsgTypeStudioServerStatus = MsgType("studio-server-status")
 type MsgDataStartTicRunner struct {
 	ListenToUrl string `json:"listenToUrl"`
 	PlayerName  string `json:"playerName"`
-	ObsOverlay  string `json:"obsOverlay"` // "", "none", "code"
+	ObsOverlay  string `json:"obsOverlay"` // "none", "code"
+	ManageTic   string `json:"manageTic"`  // "yes", "no"
 }
 
 //const MsgTypeStopTicRunner = MsgType("stop-tic-runner")
