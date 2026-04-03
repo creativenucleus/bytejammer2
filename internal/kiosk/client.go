@@ -120,16 +120,6 @@ func sendSnapshot(
 		return err
 	}
 
-	/*
-		data, err := json.Marshal(tic.MsgTicSnapshotData{
-			PlayerName: playerName,
-			EffectName: effectName,
-			Code:       state.Code,
-		})
-		if err != nil {
-			return err
-		}
-	*/
 	data := map[string]any{
 		"playerName": playerName,
 		"effectName": effectName,

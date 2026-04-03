@@ -1,6 +1,10 @@
 package message
 
-import "github.com/google/uuid"
+import (
+	"log"
+
+	"github.com/google/uuid"
+)
 
 type MsgType string
 
@@ -85,6 +89,9 @@ func (b *MsgPropagator) RemoveReceiver(r MsgReceiver) {
 // Send sends a message to all registered receivers
 func (b *MsgPropagator) Propagate(msgType MsgType, msgData []byte) {
 	for _, receiver := range b.messageReceivers {
-		receiver.MsgHandler(msgType, msgData)
+		err := receiver.MsgHandler(msgType, msgData)
+		if err != nil {
+			log.Printf("Error propagating message to receiver: %v", err)
+		}
 	}
 }

@@ -31,12 +31,6 @@ func NewMessageTicState(state State) (*message.Msg, error) {
 	return &message.Msg{Type: "tic-state", Data: data}, nil
 }
 
-type MsgTicSnapshotData struct {
-	PlayerName string
-	EffectName string
-	Code       []byte
-}
-
 // TicManager is a struct that represents a TIC-80 instance
 // It can import from a specific path, and export to a specific path
 // Currently a TIC instance cannot both import and export

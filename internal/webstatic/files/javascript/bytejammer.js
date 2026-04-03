@@ -1,7 +1,9 @@
 // severity: ok, info, error
 const setWsLocalStatusText = (severity, text) => {   
 	const elText = document.getElementById("ws-local-status")
-	elText.innerHTML = text;
+	if (elText) {
+		elText.innerHTML = text;
+	}
 
 	const elHeader = document.getElementById("bj-navbar")
 	if (elHeader) {

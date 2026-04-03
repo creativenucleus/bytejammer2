@@ -23,18 +23,34 @@ func NewKioskServer(dir string) *KioskServer {
 	}
 }
 
+// TODO: look at (string) conversions, and messaging in general!
 func (ks *KioskServer) MsgHandler(msgType message.MsgType, msgData []byte) error {
+	var msgDecoded message.Msg
+	err := json.Unmarshal(msgData, &msgDecoded)
+	if err != nil {
+		return err
+	}
+
 	switch msgType {
 	case message.MsgTypeTicSnapshot:
-		var snapshotData MsgTicSnapshotData
-		err := json.Unmarshal(msgData, &snapshotData)
-		if err != nil {
-			return err
+		playerName, ok := msgDecoded.Data["playerName"].(string)
+		if !ok {
+			return fmt.Errorf("missing 'playerName' in snapshot data")
+		}
+
+		effectName, ok := msgDecoded.Data["effectName"].(string)
+		if !ok {
+			return fmt.Errorf("missing 'effectName' in snapshot data")
+		}
+
+		code, ok := msgDecoded.Data["code"].(string)
+		if !ok {
+			return fmt.Errorf("missing 'code' in snapshot data")
 		}
 
 		timeNow := time.Now()
 
-		fnameBase := fmt.Sprintf("%s-%s-%s", timeNow.Format("20060102150405"), files.SanitiseFilename(snapshotData.PlayerName), files.SanitiseFilename(snapshotData.EffectName))
+		fnameBase := fmt.Sprintf("%s-%s-%s", timeNow.Format("20060102150405"), files.SanitiseFilename(playerName), files.SanitiseFilename(effectName))
 		fpathLua := fmt.Sprintf("%s/%s.lua", ks.directory, fnameBase)
 		fpathMetaJson := fmt.Sprintf("%s.meta.json", fpathLua)
 
@@ -44,12 +60,12 @@ func (ks *KioskServer) MsgHandler(msgType message.MsgType, msgData []byte) error
 			return err
 		}
 
-		err = os.WriteFile(cleanPath, snapshotData.Code, 0644)
+		err = os.WriteFile(cleanPath, []byte(code), 0644)
 		if err != nil {
 			return err
 		}
 
-		err = files.SaveMetaJson(fpathMetaJson, snapshotData.PlayerName, snapshotData.EffectName)
+		err = files.SaveMetaJson(fpathMetaJson, playerName, effectName)
 		if err != nil {
 			return err
 		}
