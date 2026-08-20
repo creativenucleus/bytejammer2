@@ -54,13 +54,8 @@ func (wss *WebSocketServer) socketHandler() func(http.ResponseWriter, *http.Requ
 			wss.conn = nil
 		}()
 
-		go wss.wsOperatorRead()
+		wss.wsOperatorRead()
 		//		go wss.wsOperatorWrite()
-
-		// #TODO: handle exit
-		for {
-			time.Sleep(time.Second)
-		}
 	}
 }
 

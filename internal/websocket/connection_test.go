@@ -15,6 +15,8 @@ import (
 
 var upgrader = websocket.Upgrader{}
 
+// TODO: figure out what this test is for, and whether it should be checking for an error or no error.
+// Also: comment better!
 func TestReconnect(t *testing.T) {
 	require := require.New(t)
 

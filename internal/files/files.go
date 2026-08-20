@@ -48,6 +48,7 @@ type FileWatcher struct {
 func NewFileWatcher(path string, checkFrequency time.Duration, chFileDataUpdate chan []byte) (*FileWatcher, error) {
 	fw := &FileWatcher{
 		path:             path,
+		checkFrequency:   checkFrequency,
 		chFileDataUpdate: chFileDataUpdate,
 	}
 
@@ -60,7 +61,7 @@ func (f FileWatcher) Run() {
 	for {
 		<-ticker.C
 		data, err := f.Read()
-		if err != nil {
+		if err == nil {
 			f.chFileDataUpdate <- data
 		}
 	}
